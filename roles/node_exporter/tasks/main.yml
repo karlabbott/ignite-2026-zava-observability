@@ -1,0 +1,80 @@
+---
+- name: Resolve node exporter architecture
+  ansible.builtin.set_fact:
+    node_exporter_arch: "{{ node_exporter_arch_map.get(ansible_architecture, '') }}"
+
+- name: Require supported node exporter architecture
+  ansible.builtin.assert:
+    that:
+      - node_exporter_arch | length > 0
+    fail_msg: "Unsupported architecture: {{ ansible_architecture }}"
+
+- name: Create node exporter system user
+  ansible.builtin.user:
+    name: "{{ node_exporter_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Download node exporter
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{
+      node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    mode: "0644"
+    checksum: "sha256:{{ node_exporter_checksums[node_exporter_arch] }}"
+
+- name: Extract node exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+
+- name: Install node exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  notify: Restart node exporter
+
+- name: Install node exporter service
+  ansible.builtin.template:
+    src: node-exporter.service.j2
+    dest: /etc/systemd/system/node-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart node exporter
+
+- name: Inspect service manager state
+  ansible.builtin.service_facts:
+
+- name: Permit collector through firewalld
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ zava_collector_address }}/32"
+      port port="{{ node_exporter_port }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  when: "'firewalld.service' in ansible_facts.services and ansible_facts.services['firewalld.service'].state == 'running'"
+
+- name: Permit collector through UFW
+  community.general.ufw:
+    rule: allow
+    src: "{{ zava_collector_address }}"
+    port: "{{ node_exporter_port | string }}"
+    proto: tcp
+  when: "'ufw.service' in ansible_facts.services and ansible_facts.services['ufw.service'].state == 'running'"
+
+- name: Enable node exporter
+  ansible.builtin.systemd_service:
+    name: node-exporter.service
+    enabled: true
+    state: started
+    daemon_reload: true

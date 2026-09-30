@@ -1,0 +1,101 @@
+---
+- name: Require protected Zava environment file
+  ansible.builtin.stat:
+    path: "{{ zava_application_environment_file }}"
+  register: zava_metrics_exporter_environment
+
+- name: Stop if the application environment is absent
+  ansible.builtin.assert:
+    that:
+      - zava_metrics_exporter_environment.stat.exists
+    fail_msg: >-
+      {{ zava_application_environment_file }} must already exist. The exporter
+      consumes host-resident credentials and never deploys them.
+
+- name: Verify Python virtual environment support
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -m
+      - venv
+      - --help
+  changed_when: false
+
+- name: Create exporter service account
+  ansible.builtin.user:
+    name: "{{ zava_metrics_exporter_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+    groups: shipment
+    append: true
+
+- name: Create exporter directory
+  ansible.builtin.file:
+    path: "{{ zava_metrics_exporter_root }}"
+    state: directory
+    owner: root
+    group: "{{ zava_metrics_exporter_user }}"
+    mode: "0750"
+
+- name: Install exporter application
+  ansible.builtin.copy:
+    src: exporter.py
+    dest: "{{ zava_metrics_exporter_root }}/exporter.py"
+    owner: root
+    group: "{{ zava_metrics_exporter_user }}"
+    mode: "0640"
+  notify: Restart Zava metrics exporter
+
+- name: Install exporter requirements
+  ansible.builtin.copy:
+    src: requirements.txt
+    dest: "{{ zava_metrics_exporter_root }}/requirements.txt"
+    owner: root
+    group: "{{ zava_metrics_exporter_user }}"
+    mode: "0644"
+
+- name: Create exporter virtual environment
+  ansible.builtin.pip:
+    requirements: "{{ zava_metrics_exporter_root }}/requirements.txt"
+    virtualenv: "{{ zava_metrics_exporter_root }}/venv"
+    virtualenv_command: "python3 -m venv"
+  notify: Restart Zava metrics exporter
+
+- name: Install exporter service
+  ansible.builtin.template:
+    src: zava-metrics-exporter.service.j2
+    dest: /etc/systemd/system/zava-metrics-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Zava metrics exporter
+
+- name: Inspect service manager state
+  ansible.builtin.service_facts:
+
+- name: Permit collector to scrape exporter through firewalld
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ zava_collector_address }}/32"
+      port port="{{ zava_metrics_exporter_port }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  when: "'firewalld.service' in ansible_facts.services and ansible_facts.services['firewalld.service'].state == 'running'"
+
+- name: Enable Zava metrics exporter
+  ansible.builtin.systemd_service:
+    name: zava-metrics-exporter.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Verify exporter locally
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ zava_metrics_exporter_port }}/metrics"
+    return_content: true
+  register: zava_metrics_exporter_metrics
+  until: zava_metrics_exporter_metrics.status == 200
+  retries: 10
+  delay: 3

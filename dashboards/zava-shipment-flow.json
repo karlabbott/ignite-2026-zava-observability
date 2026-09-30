@@ -1,0 +1,395 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "description": "Business-first view of whether Zava shipments are moving fast enough.",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "liveNow": true,
+    "panels": [
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "red", "value": 1}
+              ]
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 0, "y": 0},
+        "id": 1,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_queue_depth", "instant": true, "legendFormat": "Queued", "refId": "A"}
+        ],
+        "title": "Current backlog",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 15},
+                {"color": "red", "value": 30}
+              ]
+            },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 4, "y": 0},
+        "id": 2,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_queue_oldest_age_seconds", "instant": true, "legendFormat": "Oldest", "refId": "A"}
+        ],
+        "title": "Oldest pending work",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "ops"},
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
+        "id": 3,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava:work_arrivals_per_minute", "instant": true, "legendFormat": "Arrivals/min", "refId": "A"}
+        ],
+        "title": "Work arriving / min",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "ops"},
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 12, "y": 0},
+        "id": 4,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava:work_completions_per_minute", "instant": true, "legendFormat": "Completions/min", "refId": "A"}
+        ],
+        "title": "Work completed / min",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 7},
+                {"color": "red", "value": 10}
+              ]
+            },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 16, "y": 0},
+        "id": 5,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_queue_latency_quantile_seconds{quantile=\"0.95\"}", "instant": true, "legendFormat": "p95", "refId": "A"}
+        ],
+        "title": "Queue latency p95",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "red", "value": 0.001}
+              ]
+            },
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 5, "w": 4, "x": 20, "y": 0},
+        "id": 6,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_queue_stuck_items", "instant": true, "legendFormat": "Breached", "refId": "A"}
+        ],
+        "title": "Work outside SLO",
+        "type": "stat"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {"group": "A", "mode": "none"}
+            },
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 9, "w": 16, "x": 0, "y": 5},
+        "id": 7,
+        "options": {
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "desc"}
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava:work_arrivals_per_minute", "legendFormat": "Arrivals/min", "refId": "A"},
+          {"editorMode": "code", "expr": "zava:work_completions_per_minute", "legendFormat": "Completions/min", "refId": "B"},
+          {"editorMode": "code", "expr": "zava_queue_depth", "legendFormat": "Backlog", "refId": "C"}
+        ],
+        "title": "Are shipments moving fast enough?",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+          "overrides": []
+        },
+        "gridPos": {"h": 9, "w": 8, "x": 16, "y": 5},
+        "id": 8,
+        "options": {
+          "displayLabels": ["name", "value"],
+          "legend": {"displayMode": "table", "placement": "right", "showLegend": true},
+          "pieType": "donut",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_shipments", "instant": true, "legendFormat": "{{status}}", "refId": "A"}
+        ],
+        "title": "Shipment status distribution",
+        "type": "piechart"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisPlacement": "auto",
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "lineWidth": 2,
+              "showPoints": "never",
+              "stacking": {"group": "A", "mode": "normal"}
+            },
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 14},
+        "id": 9,
+        "options": {
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "desc"}
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute", "legendFormat": "{{worker_host}} / {{worker_site}}", "refId": "A"}
+        ],
+        "title": "Worker contribution",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "red", "value": 30}
+              ]
+            },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 14},
+        "id": 10,
+        "options": {
+          "displayMode": "gradient",
+          "minVizHeight": 10,
+          "minVizWidth": 0,
+          "orientation": "horizontal",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "showUnfilled": true,
+          "valueMode": "color"
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_tier_heartbeat_age_seconds", "instant": true, "legendFormat": "{{tier}} / {{hostname}}", "refId": "A"}
+        ],
+        "title": "Application heartbeat age",
+        "type": "bargauge"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisPlacement": "auto",
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "lineWidth": 1,
+              "showPoints": "never",
+              "stacking": {"group": "A", "mode": "none"}
+            },
+            "unit": "percentunit"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 14},
+        "id": 11,
+        "options": {
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "desc"}
+        },
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m]))",
+            "legendFormat": "{{tier}} / {{host}}",
+            "refId": "A"
+          }
+        ],
+        "title": "CPU utilization by tier",
+        "type": "timeseries"
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 41,
+    "tags": ["zava", "ignite", "linux", "shipment-flow"],
+    "templating": {
+      "list": [
+        {
+          "current": {},
+          "label": "Prometheus",
+          "name": "DS_PROMETHEUS",
+          "options": [],
+          "query": "prometheus",
+          "refresh": 1,
+          "regex": "",
+          "type": "datasource"
+        }
+      ]
+    },
+    "time": {"from": "now-30m", "to": "now"},
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Zava Shipment Flow",
+    "uid": "zava-shipment-flow",
+    "version": 1,
+    "weekStart": ""
+  },
+  "message": "Deploy Zava business-first observability dashboard",
+  "overwrite": true
+}

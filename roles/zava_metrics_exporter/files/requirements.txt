@@ -1,0 +1,2 @@
+prometheus-client>=0.23,<1.0
+pymssql>=2.3,<3.0

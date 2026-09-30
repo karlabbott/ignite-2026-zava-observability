@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-}"
+duration="${2:-180}"
+db_address="${3:-{{ zava_db_address }}}"
+db_port="${4:-{{ zava_sql_port }}}"
+
+if [[ ! "${duration}" =~ ^[0-9]+$ ]] || (( duration < 30 || duration > 600 )); then
+  echo "duration must be an integer between 30 and 600 seconds" >&2
+  exit 2
+fi
+
+run_capture() {
+  local unit="$1"
+  shift
+  systemctl stop "${unit}.service" >/dev/null 2>&1 || true
+  systemd-run \
+    --unit="${unit}" \
+    --collect \
+    --property=Type=exec \
+    --property=TimeoutStopSec=10 \
+    /usr/local/bin/ig run "$@"
+}
+
+case "${action}" in
+  tcp)
+    run_capture zava-ig-tcp \
+      ghcr.io/inspektor-gadget/gadget/trace_tcp:latest \
+      --connect-only --failure-only --timeout "${duration}"
+    echo "Tracing failed TCP connections; focus on ${db_address}:${db_port}."
+    ;;
+  process)
+    run_capture zava-ig-signal \
+      ghcr.io/inspektor-gadget/gadget/trace_signal:latest \
+      --timeout "${duration}"
+    run_capture zava-ig-exec \
+      ghcr.io/inspektor-gadget/gadget/trace_exec:latest \
+      --paths --timeout "${duration}"
+    echo "Tracing process signals and executions."
+    ;;
+  blockio)
+    run_capture zava-ig-blockio \
+      ghcr.io/inspektor-gadget/gadget/profile_blockio:latest \
+      --timeout "${duration}"
+    echo "Profiling block-device latency."
+    ;;
+  dns)
+    run_capture zava-ig-dns \
+      ghcr.io/inspektor-gadget/gadget/trace_dns:latest \
+      --timeout "${duration}"
+    echo "Tracing DNS requests and responses."
+    ;;
+  *)
+    echo "usage: $0 {tcp|process|blockio|dns} [duration] [db_address] [db_port]" >&2
+    exit 2
+    ;;
+esac

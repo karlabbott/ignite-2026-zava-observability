@@ -1,0 +1,7 @@
+---
+inspektor_gadget_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+inspektor_gadget_checksums:
+  amd64: dd8e2942b7f2a572f4a77672532a4992970a820cbadac108d4784351ba7c3098
+  arm64: d0b2aca819119577480da1b652f0c1a7b35248707fe7d48c7460ae4e949b7f1a

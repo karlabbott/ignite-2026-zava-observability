@@ -1,0 +1,50 @@
+---
+- name: Activate bounded live observability evidence
+  hosts: "{{ live_target | default('zava_workers') }}"
+  become: true
+  gather_facts: false
+  vars:
+    live_evidence: "{{ evidence | default('tcp') }}"
+    live_duration_seconds: "{{ duration | default(180) | int }}"
+  tasks:
+    - name: Validate requested evidence
+      ansible.builtin.assert:
+        that:
+          - live_evidence in ['tcp', 'process', 'blockio', 'dns', 'stop']
+          - live_duration_seconds >= 30
+          - live_duration_seconds <= 600
+        fail_msg: >-
+          evidence must be tcp, process, blockio, dns, or stop; duration must
+          be between 30 and 600 seconds.
+
+    - name: Stop previous Zava evidence captures
+      ansible.builtin.systemd_service:
+        name: "zava-ig-{{ item }}.service"
+        state: stopped
+      failed_when: false
+      loop:
+        - tcp
+        - signal
+        - exec
+        - blockio
+        - dns
+
+    - name: Start requested evidence capture
+      ansible.builtin.command:
+        argv:
+          - /usr/local/sbin/zava-ig-capture
+          - "{{ live_evidence }}"
+          - "{{ live_duration_seconds | string }}"
+          - "{{ zava_db_address }}"
+          - "{{ zava_sql_port | string }}"
+      changed_when: live_evidence != 'stop'
+      when: live_evidence != 'stop'
+
+    - name: Show evidence command
+      ansible.builtin.debug:
+        msg:
+          - "Evidence: {{ live_evidence }}"
+          - "Target: {{ inventory_hostname }}"
+          - "Duration: {{ live_duration_seconds }} seconds"
+          - "Follow: journalctl -fu zava-ig-{{ 'signal' if live_evidence == 'process' else live_evidence }}"
+      when: live_evidence != 'stop'

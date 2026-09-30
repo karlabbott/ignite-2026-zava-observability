@@ -1,0 +1,34 @@
+---
+- name: Ensure Azure Managed Grafana CLI extension is available
+  ansible.builtin.command:
+    argv:
+      - az
+      - extension
+      - add
+      - --name
+      - amg
+      - --upgrade
+      - --only-show-errors
+  changed_when: false
+
+- name: Publish Zava operations dashboard
+  ansible.builtin.command:
+    argv:
+      - az
+      - grafana
+      - dashboard
+      - create
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --name
+      - "{{ azure_managed_grafana_name }}"
+      - --title
+      - Zava Shipment Flow
+      - --definition
+      - "@{{ playbook_dir }}/../dashboards/zava-shipment-flow.json"
+      - --overwrite
+      - "true"
+      - --only-show-errors
+      - --output
+      - none
+  changed_when: true

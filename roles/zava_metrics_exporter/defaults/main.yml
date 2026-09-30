@@ -1,0 +1,4 @@
+---
+zava_metrics_exporter_port: 9108
+zava_metrics_exporter_user: zava_metrics
+zava_metrics_exporter_root: /opt/zava-observability

@@ -1,0 +1,32 @@
+---
+# Non-secret Azure resource coordinates. Authentication comes from `az login`.
+azure_subscription_id: "00000000-0000-0000-0000-000000000000"
+azure_resource_group: rg-zava-rehearsal-wus2
+azure_location: westus2
+azure_monitor_workspace_name: amw-zava-ignite
+azure_managed_grafana_name: amg-zava-ignite
+azure_prometheus_dce_name: dce-zava-prometheus
+azure_prometheus_dcr_name: dcr-zava-prometheus
+azure_collector_vm_name: zava-cutover-admin
+
+# Private estate coordinates. No SSH key or password belongs in this file.
+zava_collector_address: 192.168.90.10
+zava_db_address: 192.168.90.11
+zava_api_address: 192.168.90.12
+zava_web_address: 192.168.90.13
+zava_worker_address: 192.168.90.14
+zava_sql_port: 1433
+
+# Existing protected application configuration on the API VM. The exporter
+# reads this file at runtime; Ansible never reads or copies its secret values.
+zava_application_environment_file: /etc/shipment/shipment.env
+
+# Pinned, public upstream artifacts.
+prometheus_version: 3.15.0
+node_exporter_version: 1.12.1
+inspektor_gadget_version: 0.56.1
+
+# Rehearsal values. Replace only after measuring the running estate.
+zava_queue_latency_slo_seconds: 10
+zava_oldest_work_slo_seconds: 30
+zava_stuck_work_threshold_seconds: 30

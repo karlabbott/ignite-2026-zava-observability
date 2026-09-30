@@ -1,0 +1,26 @@
+[Unit]
+Description=Prometheus collector for the Zava estate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ prometheus_collector_user }}
+Group={{ prometheus_collector_user }}
+ExecStart={{ prometheus_collector_root }}/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path={{ prometheus_collector_data_dir }} \
+  --storage.tsdb.retention.time=24h \
+  --web.listen-address=0.0.0.0:{{ prometheus_collector_port }} \
+  --web.enable-lifecycle
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ prometheus_collector_data_dir }}
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

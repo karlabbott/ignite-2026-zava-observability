@@ -1,0 +1,70 @@
+---
+- name: Provision Azure observability control plane
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - azure_control_plane
+
+- name: Install host and eBPF instrumentation
+  hosts: zava_workloads
+  become: true
+  gather_facts: true
+  roles:
+    - node_exporter
+    - inspektor_gadget
+
+- name: Install Zava business metrics exporter
+  hosts: zava_api
+  become: true
+  gather_facts: true
+  roles:
+    - zava_metrics_exporter
+
+- name: Install Prometheus collector and Azure remote write
+  hosts: prometheus_collectors
+  become: true
+  gather_facts: true
+  roles:
+    - prometheus_collector
+
+- name: Publish the Azure Managed Grafana dashboard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - grafana_dashboard
+
+- name: Verify the complete metrics path
+  hosts: prometheus_collectors
+  gather_facts: false
+  tasks:
+    - name: Wait for Prometheus readiness
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/-/ready
+        return_content: true
+      register: prometheus_ready
+      until: prometheus_ready.status == 200
+      retries: 12
+      delay: 5
+
+    - name: Check scrape targets
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/api/v1/targets
+        return_content: true
+      register: prometheus_targets
+
+    - name: Require every configured target to be healthy
+      ansible.builtin.assert:
+        that:
+          - >-
+            prometheus_targets.json.data.activeTargets
+            | selectattr('health', 'ne', 'up')
+            | list
+            | length == 0
+        fail_msg: >-
+          One or more Prometheus targets are unhealthy:
+          {{ prometheus_targets.json.data.activeTargets
+             | selectattr('health', 'ne', 'up')
+             | map(attribute='scrapeUrl')
+             | list }}

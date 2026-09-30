@@ -1,0 +1,143 @@
+---
+- name: Validate Azure coordinates
+  ansible.builtin.assert:
+    that:
+      - azure_subscription_id | length == 36
+      - azure_subscription_id != '00000000-0000-0000-0000-000000000000'
+      - azure_resource_group | length > 0
+      - azure_monitor_workspace_name | length > 0
+      - azure_managed_grafana_name | length > 0
+    fail_msg: Copy inventory/example to inventory/production and set real non-secret Azure coordinates.
+
+- name: Confirm Azure CLI authentication
+  ansible.builtin.command:
+    argv:
+      - az
+      - account
+      - show
+      - --only-show-errors
+      - --output
+      - json
+  changed_when: false
+
+- name: Select Azure subscription
+  ansible.builtin.command:
+    argv:
+      - az
+      - account
+      - set
+      - --subscription
+      - "{{ azure_subscription_id }}"
+  changed_when: false
+
+- name: Deploy Azure Monitor Workspace and Managed Grafana
+  ansible.builtin.command:
+    argv:
+      - az
+      - deployment
+      - group
+      - create
+      - --only-show-errors
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --name
+      - zava-observability
+      - --template-file
+      - "{{ playbook_dir }}/../azure/main.bicep"
+      - --parameters
+      - "location={{ azure_location }}"
+      - "monitorWorkspaceName={{ azure_monitor_workspace_name }}"
+      - "grafanaName={{ azure_managed_grafana_name }}"
+      - "prometheusDceName={{ azure_prometheus_dce_name }}"
+      - "prometheusDcrName={{ azure_prometheus_dcr_name }}"
+      - --output
+      - json
+  register: azure_control_plane_deployment
+  changed_when: >-
+    (azure_control_plane_deployment.stdout | from_json).properties.provisioningState
+    == 'Succeeded'
+
+- name: Capture Azure deployment outputs
+  ansible.builtin.set_fact:
+    azure_control_plane_monitor_workspace_resource_id: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.monitorWorkspaceResourceId.value }}
+    azure_control_plane_prometheus_dcr_resource_id: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusDcrResourceId.value }}
+    azure_control_plane_prometheus_dcr_immutable_id: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusDcrImmutableId.value }}
+    azure_control_plane_metrics_ingestion_endpoint: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusMetricsIngestionEndpoint.value }}
+    azure_control_plane_grafana_endpoint: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.grafanaEndpoint.value }}
+
+- name: Build Prometheus remote-write URL
+  ansible.builtin.set_fact:
+    azure_control_plane_remote_write_url: >-
+      {{ azure_control_plane_metrics_ingestion_endpoint
+         | regex_replace('/$', '') }}/dataCollectionRules/{{
+         azure_control_plane_prometheus_dcr_immutable_id
+         }}/streams/Microsoft-PrometheusMetrics/api/v1/write?api-version=2023-04-24
+
+- name: Enable system-assigned identity on Prometheus collector VM
+  ansible.builtin.command:
+    argv:
+      - az
+      - vm
+      - identity
+      - assign
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --name
+      - "{{ azure_collector_vm_name }}"
+      - --output
+      - json
+  register: azure_control_plane_collector_identity
+  changed_when: false
+
+- name: Grant Prometheus permission to publish metrics
+  ansible.builtin.command:
+    argv:
+      - az
+      - role
+      - assignment
+      - create
+      - --assignee-object-id
+      - "{{ (azure_control_plane_collector_identity.stdout | from_json).systemAssignedIdentity }}"
+      - --assignee-principal-type
+      - ServicePrincipal
+      - --role
+      - Monitoring Metrics Publisher
+      - --scope
+      - "{{ azure_control_plane_prometheus_dcr_resource_id }}"
+      - --only-show-errors
+      - --output
+      - none
+  register: azure_control_plane_metrics_publisher_assignment
+  changed_when: azure_control_plane_metrics_publisher_assignment.rc == 0
+  failed_when:
+    - azure_control_plane_metrics_publisher_assignment.rc != 0
+    - "'RoleAssignmentExists' not in azure_control_plane_metrics_publisher_assignment.stderr"
+
+- name: Share Azure outputs with managed hosts
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    zava_prometheus_remote_write_url: "{{ azure_control_plane_remote_write_url }}"
+    zava_grafana_endpoint: "{{ azure_control_plane_grafana_endpoint }}"
+  loop: "{{ groups['prometheus_collectors'] }}"
+
+- name: Create local generated-data directory
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../generated"
+    state: directory
+    mode: "0755"
+
+- name: Persist non-secret generated coordinates locally
+  ansible.builtin.copy:
+    dest: "{{ playbook_dir }}/../generated/azure.yml"
+    mode: "0644"
+    content: |
+      ---
+      zava_monitor_workspace_resource_id: {{ azure_control_plane_monitor_workspace_resource_id }}
+      zava_prometheus_dcr_resource_id: {{ azure_control_plane_prometheus_dcr_resource_id }}
+      zava_prometheus_remote_write_url: {{ azure_control_plane_remote_write_url }}
+      zava_grafana_endpoint: {{ azure_control_plane_grafana_endpoint }}

@@ -1,0 +1,54 @@
+---
+- name: Resolve Inspektor Gadget architecture
+  ansible.builtin.set_fact:
+    inspektor_gadget_arch: "{{ inspektor_gadget_arch_map.get(ansible_architecture, '') }}"
+
+- name: Require supported Inspektor Gadget architecture and kernel
+  ansible.builtin.assert:
+    that:
+      - inspektor_gadget_arch | length > 0
+      - ansible_kernel is version('5.4', '>=')
+    fail_msg: >-
+      Inspektor Gadget requires x86_64/aarch64 and a kernel of at least 5.4;
+      found {{ ansible_architecture }} / {{ ansible_kernel }}.
+
+- name: Download Inspektor Gadget
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/inspektor-gadget/inspektor-gadget/releases/download/v{{
+      inspektor_gadget_version }}/ig-linux-{{ inspektor_gadget_arch }}-v{{
+      inspektor_gadget_version }}.tar.gz
+    dest: "/tmp/ig-v{{ inspektor_gadget_version }}.tar.gz"
+    mode: "0644"
+    checksum: "sha256:{{ inspektor_gadget_checksums[inspektor_gadget_arch] }}"
+
+- name: Extract Inspektor Gadget
+  ansible.builtin.unarchive:
+    src: "/tmp/ig-v{{ inspektor_gadget_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+
+- name: Install Inspektor Gadget binary
+  ansible.builtin.copy:
+    src: /tmp/ig
+    dest: /usr/local/bin/ig
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+
+- name: Install bounded capture wrapper
+  ansible.builtin.template:
+    src: zava-ig-capture.j2
+    dest: /usr/local/sbin/zava-ig-capture
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Verify Inspektor Gadget installation
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/ig
+      - version
+  register: inspektor_gadget_version_result
+  changed_when: false

@@ -1,0 +1,53 @@
+groups:
+  - name: zava-flow-recording
+    interval: 10s
+    rules:
+      - record: zava:work_arrivals_per_minute
+        expr: rate(zava_queue_arrivals_total[2m]) * 60
+      - record: zava:work_completions_per_minute
+        expr: rate(zava_queue_completions_total[2m]) * 60
+      - record: zava:backlog_change_per_minute
+        expr: zava:work_arrivals_per_minute - zava:work_completions_per_minute
+      - record: zava:worker_completions_per_minute
+        expr: sum by (worker_host, worker_site) (rate(zava_scan_events_total[2m]) * 60)
+      - record: zava:tier_healthy
+        expr: zava_tier_heartbeat_age_seconds < 30
+
+  - name: zava-flow-alerts
+    interval: 10s
+    rules:
+      - alert: ZavaShipmentFlowStopped
+        expr: zava_queue_depth > 0 and zava:work_completions_per_minute == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Shipment processing has stopped
+          description: Work is queued but no shipment transitions are completing.
+
+      - alert: ZavaOldestWorkBreached
+        expr: zava_queue_oldest_age_seconds > {{ zava_oldest_work_slo_seconds }}
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Oldest queued shipment work breached its SLO
+          description: The oldest pending item exceeds {{ zava_oldest_work_slo_seconds }} seconds.
+
+      - alert: ZavaBacklogGrowing
+        expr: zava:backlog_change_per_minute > 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: Shipment demand is outrunning processing
+          description: Work arrival rate has exceeded completion rate for three minutes.
+
+      - alert: ZavaTierHeartbeatStale
+        expr: zava_tier_heartbeat_age_seconds > 30
+        for: 20s
+        labels:
+          severity: critical
+        annotations:
+          summary: Zava application tier heartbeat is stale
+          description: "{{ $labels.tier }} on {{ $labels.hostname }} has stopped reporting."

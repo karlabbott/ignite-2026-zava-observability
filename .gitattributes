@@ -1,0 +1,9 @@
+* text=auto
+*.bicep text eol=lf
+*.cfg text eol=lf
+*.json text eol=lf
+*.j2 text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
