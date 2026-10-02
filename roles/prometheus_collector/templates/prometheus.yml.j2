@@ -39,6 +39,11 @@ scrape_configs:
           tier: worker
           host: ciq-rocky-worker
           distro: rocky
+      - targets: ["{{ zava_azurelinux_worker_address }}:9100"]
+        labels:
+          tier: worker
+          host: azurelinux-worker
+          distro: azurelinux
 
 remote_write:
   - url: "{{ zava_prometheus_remote_write_url }}"

@@ -57,7 +57,7 @@
         - query: >-
             zava_tier_heartbeat_age_seconds{
             platform="Azure",location="azure/westus2"}
-          minimum_series: 4
+          minimum_series: 5
       register: zava_business_metric_queries
       until: >-
         zava_business_metric_queries.json.data.result
@@ -81,7 +81,7 @@
       ansible.builtin.assert:
         that:
           - zava_business_metric_queries.results[0].json.data.result | length == 1
-          - zava_business_metric_queries.results[1].json.data.result | length == 4
+          - zava_business_metric_queries.results[1].json.data.result | length == 5
           - >-
             zava_business_metric_queries.results[1].json.data.result
             | map(attribute='metric')
@@ -90,7 +90,7 @@
             | length == 4
           - zava_non_azure_worker_metrics.json.data.result | length == 0
         fail_msg: >-
-          Live Azure queue, four-tier heartbeat, or Azure-only worker filtering
+          Live Azure queue, five-host heartbeat, or Azure-only worker filtering
           is incorrect in Prometheus.
 
     - name: Read Prometheus runtime metrics

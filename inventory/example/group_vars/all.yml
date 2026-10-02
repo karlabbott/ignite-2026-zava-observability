@@ -20,6 +20,7 @@ zava_db_address: 192.168.90.11
 zava_api_address: 192.168.90.12
 zava_web_address: 192.168.90.13
 zava_worker_address: 192.168.90.14
+zava_azurelinux_worker_address: 192.168.90.15
 zava_sql_port: 1433
 
 # Existing protected application configuration on the API VM. The exporter

@@ -65,7 +65,7 @@ the estate's history.
   workload NSG.
 - Enables the collector VM's system-assigned managed identity.
 - Grants only `Monitoring Metrics Publisher` on the Prometheus DCR.
-- Installs node_exporter on the four workload VMs.
+- Installs node_exporter on the five workload VMs, including both workers.
 - Installs the Zava business exporter on SLES.
 - Installs Prometheus on the private admin VM.
 - Configures managed-identity remote write.

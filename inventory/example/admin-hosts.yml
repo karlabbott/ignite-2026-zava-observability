@@ -19,6 +19,9 @@ all:
         ciq-rocky-worker:
           ansible_host: 192.168.90.14
           zava_tier: worker
+        azurelinux-worker:
+          ansible_host: 192.168.90.15
+          zava_tier: worker
     zava_api:
       hosts:
         sles-api:
@@ -28,6 +31,7 @@ all:
     zava_workers:
       hosts:
         ciq-rocky-worker:
+        azurelinux-worker:
     prometheus_collectors:
       hosts:
         zava-cutover-admin:
