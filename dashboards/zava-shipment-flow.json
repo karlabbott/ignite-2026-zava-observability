@@ -306,15 +306,26 @@
               "axisCenteredZero": false,
               "axisColorMode": "text",
               "axisPlacement": "auto",
+              "axisSoftMin": 0,
               "drawStyle": "line",
               "fillOpacity": 20,
               "lineWidth": 2,
               "showPoints": "never",
               "stacking": {"group": "A", "mode": "normal"}
             },
+            "min": 0,
             "unit": "ops"
           },
-          "overrides": []
+          "overrides": [
+            {
+              "matcher": {"id": "byFrameRefID", "options": "A"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#6B7280", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byFrameRefID", "options": "B"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#0078D4", "mode": "fixed"}}]
+            }
+          ]
         },
         "gridPos": {"h": 8, "w": 8, "x": 0, "y": 14},
         "id": 9,
@@ -323,7 +334,8 @@
           "tooltip": {"mode": "multi", "sort": "desc"}
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\"}", "legendFormat": "{{worker_host}} / {{worker_site}}", "refId": "A"}
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"ciq-rocky-worker\"}", "legendFormat": "Rocky / {{worker_host}}", "refId": "A"},
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"azurelinux-worker\"}", "legendFormat": "Azure Linux / {{worker_host}}", "refId": "B"}
         ],
         "title": "Live Azure worker contribution",
         "type": "timeseries"
@@ -531,9 +543,62 @@
         ],
         "title": "Continuous IG collector health",
         "type": "bargauge"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisPlacement": "auto",
+              "axisSoftMin": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "lineWidth": 2,
+              "showPoints": "never",
+              "stacking": {"group": "A", "mode": "none"}
+            },
+            "min": 0,
+            "unit": "ops"
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byFrameRefID", "options": "A"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#6B7280", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byFrameRefID", "options": "B"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#0078D4", "mode": "fixed"}}]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 30},
+        "id": 15,
+        "options": {
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "desc"}
+        },
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "increase(node_netstat_Tcp_RetransSegs{host=\"ciq-rocky-worker\"}[1m])",
+            "legendFormat": "Rocky / {{host}}",
+            "refId": "A"
+          },
+          {
+            "editorMode": "code",
+            "expr": "increase(node_netstat_Tcp_RetransSegs{host=\"azurelinux-worker\"}[1m])",
+            "legendFormat": "Azure Linux / {{host}}",
+            "refId": "B"
+          }
+        ],
+        "title": "Worker TCP retransmissions (per minute)",
+        "type": "timeseries"
       }
     ],
-    "refresh": "10s",
+    "refresh": "5s",
     "schemaVersion": 41,
     "tags": ["zava", "ignite", "linux", "shipment-flow"],
     "templating": {
