@@ -323,7 +323,7 @@
           "valueMode": "color"
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava_tier_heartbeat_age_seconds{platform=\"azure\",location=\"azure/westus2\",exported_tier=\"\"}", "instant": true, "legendFormat": "{{tier}} / {{hostname}}", "refId": "A"}
+          {"editorMode": "code", "expr": "zava_tier_heartbeat_age_seconds{platform=\"Azure\",location=\"azure/westus2\"}", "instant": true, "legendFormat": "{{tier}} / {{hostname}}", "refId": "A"}
         ],
         "title": "Live Azure tier heartbeat age",
         "type": "bargauge"

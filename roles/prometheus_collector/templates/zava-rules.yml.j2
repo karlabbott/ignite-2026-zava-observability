@@ -15,7 +15,7 @@ groups:
       - record: zava:tier_healthy
         expr: >-
           zava_tier_heartbeat_age_seconds{
-          platform="azure",location="azure/westus2",exported_tier=""} < 30
+          platform="Azure",location="azure/westus2"} < 30
 
   - name: zava-flow-alerts
     interval: 10s
@@ -50,7 +50,7 @@ groups:
       - alert: ZavaTierHeartbeatStale
         expr: >-
           zava_tier_heartbeat_age_seconds{
-          platform="azure",location="azure/westus2",exported_tier=""} > 30
+          platform="Azure",location="azure/westus2"} > 30
         for: 20s
         labels:
           severity: critical

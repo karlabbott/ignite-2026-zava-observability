@@ -56,7 +56,7 @@
           minimum_series: 1
         - query: >-
             zava_tier_heartbeat_age_seconds{
-            platform="azure",location="azure/westus2",exported_tier=""}
+            platform="Azure",location="azure/westus2"}
           minimum_series: 4
       register: zava_business_metric_queries
       until: >-
