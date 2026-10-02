@@ -1,0 +1,13 @@
+[Unit]
+Description=Zava continuous Inspektor Gadget database block I/O profiles
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/zava-ig-export --mode continuous --evidence blockio --metrics-file {{ inspektor_gadget_metrics_directory }}/zava_ig_continuous_blockio.prom -- /usr/local/sbin/zava-ig-blockio-loop
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

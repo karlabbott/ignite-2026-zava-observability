@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while true; do
+  /usr/local/bin/ig run \
+    "profile_blockio:v{{ inspektor_gadget_version }}" \
+    -o histogram \
+    --timeout 55
+  echo ZAVA_IG_PROFILE_END
+  sleep 5
+done

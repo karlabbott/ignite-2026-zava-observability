@@ -447,45 +447,20 @@
       {
         "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
         "fieldConfig": {
-          "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
-          "overrides": [
-            {
-              "matcher": {"id": "byFrameRefID", "options": "A"},
-              "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]
-            },
-            {
-              "matcher": {"id": "byFrameRefID", "options": "B"},
-              "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
-            },
-            {
-              "matcher": {"id": "byFrameRefID", "options": "C"},
-              "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]
-            },
-            {
-              "matcher": {"id": "byFrameRefID", "options": "D"},
-              "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]
-            }
-          ]
+          "defaults": {"color": {"mode": "fixed", "fixedColor": "red"}, "unit": "short"},
+          "overrides": []
         },
         "gridPos": {"h": 8, "w": 8, "x": 0, "y": 22},
         "id": 12,
         "options": {
-          "displayMode": "gradient",
-          "minVizHeight": 10,
-          "minVizWidth": 0,
-          "orientation": "horizontal",
-          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
-          "showUnfilled": true,
-          "valueMode": "color"
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "single", "sort": "none"}
         },
         "targets": [
-          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=~\"process_.*\"})", "instant": true, "legendFormat": "Process lifecycle", "refId": "A"},
-          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"tcp\"})", "instant": true, "legendFormat": "TCP connections", "refId": "B"},
-          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"blockio\"})", "instant": true, "legendFormat": "Block I/O", "refId": "C"},
-          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"dns\"})", "instant": true, "legendFormat": "DNS", "refId": "D"}
+          {"editorMode": "code", "expr": "sum(increase(zava_ig_tcp_connections_total{result=\"success\"}[1m]))", "legendFormat": "Successful SQL connections", "refId": "A"}
         ],
-        "title": "Latest Inspektor Gadget evidence",
-        "type": "bargauge"
+        "title": "API-to-SQL connections observed by IG (per minute)",
+        "type": "timeseries"
       },
       {
         "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
@@ -502,7 +477,7 @@
               "showPoints": "never",
               "stacking": {"group": "A", "mode": "none"}
             },
-            "unit": "short"
+            "unit": "ms"
           },
           "overrides": []
         },
@@ -513,9 +488,9 @@
           "tooltip": {"mode": "multi", "sort": "desc"}
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava_ig_capture_events", "legendFormat": "{{evidence}} / {{host}}", "refId": "A"}
+          {"editorMode": "code", "expr": "zava_ig_blockio_latency_p95_seconds * 1000", "legendFormat": "RHEL DB p95", "refId": "A"}
         ],
-        "title": "IG evidence events over time",
+        "title": "Database block I/O latency observed by IG",
         "type": "timeseries"
       },
       {
@@ -526,12 +501,11 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"color": "green", "value": null},
-                {"color": "yellow", "value": 60},
-                {"color": "red", "value": 180}
+                {"color": "red", "value": null},
+                {"color": "green", "value": 1}
               ]
             },
-            "unit": "s"
+            "unit": "short"
           },
           "overrides": []
         },
@@ -549,13 +523,13 @@
         "targets": [
           {
             "editorMode": "code",
-            "expr": "(time() - zava_ig_last_event_timestamp_seconds) and (zava_ig_last_event_timestamp_seconds > 0)",
+            "expr": "zava_ig_collector_up{mode=\"continuous\"} and (time() - zava_ig_collector_heartbeat_timestamp_seconds < 30)",
             "instant": true,
             "legendFormat": "{{evidence}} / {{host}}",
             "refId": "A"
           }
         ],
-        "title": "IG evidence age",
+        "title": "Continuous IG collector health",
         "type": "bargauge"
       }
     ],

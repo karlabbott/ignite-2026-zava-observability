@@ -1,0 +1,14 @@
+---
+- name: Restart continuous TCP evidence
+  ansible.builtin.systemd_service:
+    name: zava-ig-continuous-tcp.service
+    state: restarted
+    daemon_reload: true
+  when: inventory_hostname in groups.get('zava_api', [])
+
+- name: Restart continuous block I/O evidence
+  ansible.builtin.systemd_service:
+    name: zava-ig-continuous-blockio.service
+    state: restarted
+    daemon_reload: true
+  when: inventory_hostname in groups.get('zava_database', [])

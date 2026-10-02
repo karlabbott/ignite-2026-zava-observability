@@ -52,6 +52,58 @@
     owner: root
     group: root
     mode: "0755"
+  notify:
+    - Restart continuous TCP evidence
+    - Restart continuous block I/O evidence
+
+- name: Install continuous block I/O profile loop
+  ansible.builtin.template:
+    src: zava-ig-blockio-loop.j2
+    dest: /usr/local/sbin/zava-ig-blockio-loop
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups.get('zava_database', [])
+  notify: Restart continuous block I/O evidence
+
+- name: Install continuous SQL connection evidence service
+  ansible.builtin.template:
+    src: zava-ig-continuous-tcp.service.j2
+    dest: /etc/systemd/system/zava-ig-continuous-tcp.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups.get('zava_api', [])
+  notify: Restart continuous TCP evidence
+
+- name: Install continuous block I/O evidence service
+  ansible.builtin.template:
+    src: zava-ig-continuous-blockio.service.j2
+    dest: /etc/systemd/system/zava-ig-continuous-blockio.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups.get('zava_database', [])
+  notify: Restart continuous block I/O evidence
+
+- name: Apply continuous evidence service changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable continuous SQL connection evidence
+  ansible.builtin.systemd_service:
+    name: zava-ig-continuous-tcp.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: inventory_hostname in groups.get('zava_api', [])
+
+- name: Enable continuous block I/O evidence
+  ansible.builtin.systemd_service:
+    name: zava-ig-continuous-blockio.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: inventory_hostname in groups.get('zava_database', [])
 
 - name: Verify Inspektor Gadget installation
   ansible.builtin.command:

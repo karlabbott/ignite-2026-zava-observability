@@ -1,0 +1,14 @@
+[Unit]
+Description=Zava continuous Inspektor Gadget SQL connection evidence
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/zava-ig-export --mode continuous --evidence tcp --tcp-destination {{ zava_db_address }} --tcp-port {{ zava_sql_port }} --metrics-file {{ inspektor_gadget_metrics_directory }}/zava_ig_continuous_tcp.prom -- /usr/local/bin/ig run trace_tcp:v{{ inspektor_gadget_version }} --host -o json --connect-only
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -34,6 +34,12 @@ thresholds only after these measurements.
 
 ## Failure branches
 
+Before injecting any fault:
+
+- Confirm both entries in `Continuous IG collector health` are green.
+- Confirm normal API-to-SQL connection activity is visible.
+- Confirm the RHEL database has completed a recent block-I/O profile.
+
 ### Silence worker
 
 - Start `evidence=process` before injecting the failure.
@@ -45,15 +51,24 @@ thresholds only after these measurements.
 
 ### Cut database route
 
-- Start `evidence=tcp` on the worker.
 - Inject the rehearsed route/firewall failure.
-- Establish normal SQL connection evidence before the fault.
+- Establish normal continuous API-to-SQL connection evidence before the fault.
 - Verify successful SQL connection evidence stops when the route is cut while
   queue age and backlog continue rising in Grafana.
 - Do not claim that v0.56.1 reliably emits refused or silently dropped
   connection attempts; use the application symptom and the disappearance of
   successful connection events together.
 - Verify the route rollback and sustained business recovery.
+
+### Investigate database latency
+
+- Use `Database block I/O latency observed by IG` as the continuous kernel
+  signal; it displays the approximate p95 upper histogram bound from each
+  55-second profile.
+- Correlate a latency change with queue latency and oldest-work age rather than
+  treating disk latency alone as a business incident.
+- Use the completed-profile count and collector-health panel to distinguish a
+  quiet device from a failed collector.
 
 ### Crush with demand
 

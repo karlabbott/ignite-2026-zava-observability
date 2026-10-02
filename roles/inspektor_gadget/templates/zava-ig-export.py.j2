@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 {% raw %}
-"""Stream Inspektor Gadget JSON to the journal and Prometheus textfile metrics."""
+"""Stream Inspektor Gadget evidence to journald and Prometheus textfiles."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
+import selectors
 import signal
 import socket
 import subprocess
@@ -22,7 +24,10 @@ def prometheus_escape(value: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence", required=True)
+    parser.add_argument("--mode", choices=("bounded", "continuous"), default="bounded")
     parser.add_argument("--metrics-file", required=True)
+    parser.add_argument("--tcp-destination")
+    parser.add_argument("--tcp-port", type=int)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -36,28 +41,74 @@ def main() -> int:
     started = time.time()
     last_event = 0.0
     events = 0
+    tcp_connections = {"success": 0, "error": 0}
+    blockio_buckets: list[tuple[int, int]] = []
+    blockio_operations = 0
+    blockio_p95_seconds = 0.0
+    blockio_profiles = 0
+    blockio_profile_timestamp = 0.0
+    parsing_blockio_latency = False
     child: subprocess.Popen[str] | None = None
     stopping = False
 
     def write_metrics(*, active: int, success: int) -> None:
-        labels = f'evidence="{evidence}",host="{host}"'
+        now = time.time()
+        mode = prometheus_escape(args.mode)
+        labels = f'evidence="{evidence}",host="{host}",mode="{mode}"'
         content = (
-            "# HELP zava_ig_capture_events Events emitted by the latest bounded Inspektor Gadget capture.\n"
+            "# HELP zava_ig_capture_events Evidence records emitted by the current Inspektor Gadget run.\n"
             "# TYPE zava_ig_capture_events gauge\n"
             f"zava_ig_capture_events{{{labels}}} {events}\n"
-            "# HELP zava_ig_capture_active Whether the bounded Inspektor Gadget capture is active.\n"
+            "# HELP zava_ig_capture_active Whether the Inspektor Gadget run is active.\n"
             "# TYPE zava_ig_capture_active gauge\n"
             f"zava_ig_capture_active{{{labels}}} {active}\n"
-            "# HELP zava_ig_capture_success Whether the latest bounded Inspektor Gadget capture completed successfully.\n"
+            "# HELP zava_ig_capture_success Whether the latest Inspektor Gadget run completed successfully.\n"
             "# TYPE zava_ig_capture_success gauge\n"
             f"zava_ig_capture_success{{{labels}}} {success}\n"
-            "# HELP zava_ig_capture_started_timestamp_seconds Start time of the latest bounded Inspektor Gadget capture.\n"
+            "# HELP zava_ig_capture_started_timestamp_seconds Start time of the current Inspektor Gadget run.\n"
             "# TYPE zava_ig_capture_started_timestamp_seconds gauge\n"
             f"zava_ig_capture_started_timestamp_seconds{{{labels}}} {started:.6f}\n"
             "# HELP zava_ig_last_event_timestamp_seconds Time of the latest event emitted by Inspektor Gadget.\n"
             "# TYPE zava_ig_last_event_timestamp_seconds gauge\n"
             f"zava_ig_last_event_timestamp_seconds{{{labels}}} {last_event:.6f}\n"
         )
+        if args.mode == "continuous":
+            content += (
+                "# HELP zava_ig_collector_up Whether the continuous Inspektor Gadget collector is running.\n"
+                "# TYPE zava_ig_collector_up gauge\n"
+                f"zava_ig_collector_up{{{labels}}} {active}\n"
+                "# HELP zava_ig_collector_heartbeat_timestamp_seconds Last heartbeat from the continuous Inspektor Gadget collector.\n"
+                "# TYPE zava_ig_collector_heartbeat_timestamp_seconds gauge\n"
+                f"zava_ig_collector_heartbeat_timestamp_seconds{{{labels}}} {now:.6f}\n"
+            )
+        if args.evidence == "tcp" and args.tcp_destination and args.tcp_port:
+            destination = prometheus_escape(args.tcp_destination)
+            content += (
+                "# HELP zava_ig_tcp_connections_total API-to-database TCP connections observed by Inspektor Gadget.\n"
+                "# TYPE zava_ig_tcp_connections_total counter\n"
+            )
+            for result, count in tcp_connections.items():
+                tcp_labels = (
+                    f'host="{host}",destination="{destination}",'
+                    f'port="{args.tcp_port}",result="{result}"'
+                )
+                content += f"zava_ig_tcp_connections_total{{{tcp_labels}}} {count}\n"
+        if args.evidence == "blockio":
+            blockio_labels = f'host="{host}"'
+            content += (
+                "# HELP zava_ig_blockio_latency_p95_seconds Approximate p95 block I/O latency from the latest IG profile.\n"
+                "# TYPE zava_ig_blockio_latency_p95_seconds gauge\n"
+                f"zava_ig_blockio_latency_p95_seconds{{{blockio_labels}}} {blockio_p95_seconds:.9f}\n"
+                "# HELP zava_ig_blockio_operations_profiled Block I/O operations represented by the latest IG profile.\n"
+                "# TYPE zava_ig_blockio_operations_profiled gauge\n"
+                f"zava_ig_blockio_operations_profiled{{{blockio_labels}}} {blockio_operations}\n"
+                "# HELP zava_ig_blockio_profiles_total Block I/O profiles completed by the continuous IG collector.\n"
+                "# TYPE zava_ig_blockio_profiles_total counter\n"
+                f"zava_ig_blockio_profiles_total{{{blockio_labels}}} {blockio_profiles}\n"
+                "# HELP zava_ig_blockio_profile_timestamp_seconds Completion time of the latest block I/O profile.\n"
+                "# TYPE zava_ig_blockio_profile_timestamp_seconds gauge\n"
+                f"zava_ig_blockio_profile_timestamp_seconds{{{blockio_labels}}} {blockio_profile_timestamp:.6f}\n"
+            )
         temporary = metrics_path.with_suffix(metrics_path.suffix + ".tmp")
         temporary.write_text(content, encoding="utf-8")
         os.chmod(temporary, 0o644)
@@ -81,24 +132,72 @@ def main() -> int:
         bufsize=1,
     )
     assert child.stdout is not None
-    for line in child.stdout:
+    selector = selectors.DefaultSelector()
+    selector.register(child.stdout, selectors.EVENT_READ)
+    blockio_line = re.compile(r"^\s*(\d+)\s+->\s+(\d+)\s+:\s+(\d+)\s+\|")
+
+    while True:
+        ready = selector.select(timeout=10)
+        if not ready:
+            write_metrics(active=1, success=0)
+            if child.poll() is not None:
+                break
+            continue
+
+        line = child.stdout.readline()
+        if line == "":
+            if child.poll() is not None:
+                break
+            continue
+
         print(line, end="", flush=True)
+        stripped = line.strip()
+        if args.evidence == "blockio":
+            if stripped == "latency":
+                parsing_blockio_latency = True
+                blockio_buckets = []
+                continue
+            if stripped == "ZAVA_IG_PROFILE_END":
+                blockio_operations = sum(count for _, count in blockio_buckets)
+                p95_upper_microseconds = 0
+                if blockio_operations:
+                    threshold = blockio_operations * 0.95
+                    cumulative = 0
+                    for upper, count in blockio_buckets:
+                        cumulative += count
+                        if cumulative >= threshold:
+                            p95_upper_microseconds = upper
+                            break
+                blockio_p95_seconds = p95_upper_microseconds / 1_000_000
+                blockio_profiles += 1
+                blockio_profile_timestamp = time.time()
+                events += blockio_operations
+                last_event = blockio_profile_timestamp
+                parsing_blockio_latency = False
+                write_metrics(active=1, success=0)
+                continue
+            if parsing_blockio_latency:
+                match = blockio_line.match(line)
+                if match:
+                    blockio_buckets.append((int(match.group(2)), int(match.group(3))))
+                continue
+
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
-            if (
-                args.evidence == "blockio"
-                and line.strip()
-                and not line.startswith("time=")
-                and not line.startswith("Error:")
-            ):
-                events += 1
-                last_event = time.time()
-                write_metrics(active=1, success=0)
             continue
         if isinstance(event, dict):
             events += 1
             last_event = time.time()
+            if args.evidence == "tcp" and args.tcp_destination and args.tcp_port:
+                destination = event.get("dst", {})
+                if (
+                    event.get("type") == "connect"
+                    and destination.get("addr") == args.tcp_destination
+                    and destination.get("port") == args.tcp_port
+                ):
+                    result = "success" if not event.get("error") else "error"
+                    tcp_connections[result] += 1
             write_metrics(active=1, success=0)
 
     return_code = child.wait()

@@ -35,7 +35,7 @@ Zava SQL state ──> Zava exporter ─┐
                                   │
 Linux hosts ─────> node_exporter ─┼─> private Prometheus collector
                                   │          │
-Inspektor Gadget ─> bounded trace ┘          │ managed identity
+Inspektor Gadget ─> scoped metrics ┘         │ managed identity
                                              v
                                   Azure Monitor Workspace
                                              │
@@ -70,13 +70,26 @@ the estate's history.
 - Installs Prometheus on the private admin VM.
 - Configures managed-identity remote write.
 - Installs Inspektor Gadget on the workload VMs.
+- Starts continuous, scoped SQL-connection evidence on SLES and repeated
+  block-I/O latency profiles on RHEL.
 - Publishes the Grafana dashboard.
 - Requires every Prometheus target to be healthy.
 
 ### During the session
 
-`playbooks/live-session.yml` launches one bounded evidence capture after the
-business dashboard shows a problem. Every capture:
+The pre-session deployment continuously exports three operational signals:
+
+- API-to-SQL connections observed per minute.
+- Database block-I/O p95 latency from repeated 55-second profiles.
+- Collector health from ten-second exporter heartbeats.
+
+The collectors export low-cardinality aggregates rather than raw event fields.
+Detailed output remains in the guest journal, and systemd restarts a collector
+if it exits unexpectedly.
+
+`playbooks/live-session.yml` supplements those continuous signals with a
+bounded deep trace after the business dashboard shows a problem. Every deep
+capture:
 
 - Runs through a transient systemd unit.
 - Has a 30–600 second timeout.
@@ -84,7 +97,7 @@ business dashboard shows a problem. Every capture:
 - Uses a version-pinned Gadget in explicit host mode.
 - Writes JSON evidence to the guest journal.
 - Converts event counts and timestamps into Prometheus textfile metrics exposed
-  by node_exporter and displayed in the Grafana IG evidence panels.
+  by node_exporter.
 - Has a deterministic `evidence=stop` path.
 
 Examples:
@@ -283,7 +296,9 @@ systemd metrics from each Linux VM.
 
 - The pre-session playbook does not start, stop, or reset the Zava application.
 - The live-session playbook does not inject or repair failures.
-- Inspektor Gadget captures are time bounded.
+- Continuous Inspektor Gadget collection is limited to aggregate SQL
+  connection activity and repeated block-I/O profiles. Higher-volume process,
+  signal, and DNS traces remain time bounded.
 - Metrics ports are allowed only from the private collector where firewalld or
   UFW is active.
 - Grafana and Azure resources contain no application credentials.
