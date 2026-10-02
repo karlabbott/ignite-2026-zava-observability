@@ -55,23 +55,25 @@ def main() -> int:
         now = time.time()
         mode = prometheus_escape(args.mode)
         labels = f'evidence="{evidence}",host="{host}",mode="{mode}"'
-        content = (
-            "# HELP zava_ig_capture_events Evidence records emitted by the current Inspektor Gadget run.\n"
-            "# TYPE zava_ig_capture_events gauge\n"
-            f"zava_ig_capture_events{{{labels}}} {events}\n"
-            "# HELP zava_ig_capture_active Whether the Inspektor Gadget run is active.\n"
-            "# TYPE zava_ig_capture_active gauge\n"
-            f"zava_ig_capture_active{{{labels}}} {active}\n"
-            "# HELP zava_ig_capture_success Whether the latest Inspektor Gadget run completed successfully.\n"
-            "# TYPE zava_ig_capture_success gauge\n"
-            f"zava_ig_capture_success{{{labels}}} {success}\n"
-            "# HELP zava_ig_capture_started_timestamp_seconds Start time of the current Inspektor Gadget run.\n"
-            "# TYPE zava_ig_capture_started_timestamp_seconds gauge\n"
-            f"zava_ig_capture_started_timestamp_seconds{{{labels}}} {started:.6f}\n"
-            "# HELP zava_ig_last_event_timestamp_seconds Time of the latest event emitted by Inspektor Gadget.\n"
-            "# TYPE zava_ig_last_event_timestamp_seconds gauge\n"
-            f"zava_ig_last_event_timestamp_seconds{{{labels}}} {last_event:.6f}\n"
-        )
+        content = ""
+        if args.mode == "bounded":
+            content = (
+                "# HELP zava_ig_capture_events Events emitted by the latest bounded Inspektor Gadget capture.\n"
+                "# TYPE zava_ig_capture_events gauge\n"
+                f"zava_ig_capture_events{{{labels}}} {events}\n"
+                "# HELP zava_ig_capture_active Whether the bounded Inspektor Gadget capture is active.\n"
+                "# TYPE zava_ig_capture_active gauge\n"
+                f"zava_ig_capture_active{{{labels}}} {active}\n"
+                "# HELP zava_ig_capture_success Whether the latest bounded Inspektor Gadget capture completed successfully.\n"
+                "# TYPE zava_ig_capture_success gauge\n"
+                f"zava_ig_capture_success{{{labels}}} {success}\n"
+                "# HELP zava_ig_capture_started_timestamp_seconds Start time of the latest bounded Inspektor Gadget capture.\n"
+                "# TYPE zava_ig_capture_started_timestamp_seconds gauge\n"
+                f"zava_ig_capture_started_timestamp_seconds{{{labels}}} {started:.6f}\n"
+                "# HELP zava_ig_last_event_timestamp_seconds Time of the latest event emitted by Inspektor Gadget.\n"
+                "# TYPE zava_ig_last_event_timestamp_seconds gauge\n"
+                f"zava_ig_last_event_timestamp_seconds{{{labels}}} {last_event:.6f}\n"
+            )
         if args.mode == "continuous":
             content += (
                 "# HELP zava_ig_collector_up Whether the continuous Inspektor Gadget collector is running.\n"

@@ -523,7 +523,7 @@
         "targets": [
           {
             "editorMode": "code",
-            "expr": "zava_ig_collector_up{mode=\"continuous\"} and (time() - zava_ig_collector_heartbeat_timestamp_seconds < 30)",
+            "expr": "zava_ig_collector_up{mode=\"continuous\"} * (time() - zava_ig_collector_heartbeat_timestamp_seconds < bool 90)",
             "instant": true,
             "legendFormat": "{{evidence}} / {{host}}",
             "refId": "A"
