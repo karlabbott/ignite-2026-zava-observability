@@ -286,13 +286,13 @@
           "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
         },
         "targets": [
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"CREATED\"})", "instant": true, "legendFormat": "CREATED", "refId": "A"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"PICKED_UP\"})", "instant": true, "legendFormat": "PICKED_UP", "refId": "B"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"IN_TRANSIT\"})", "instant": true, "legendFormat": "IN_TRANSIT", "refId": "C"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"AT_HUB\"})", "instant": true, "legendFormat": "AT_HUB", "refId": "D"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"OUT_FOR_DELIVERY\"})", "instant": true, "legendFormat": "OUT_FOR_DELIVERY", "refId": "E"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"DELIVERED\"})", "instant": true, "legendFormat": "DELIVERED", "refId": "F"},
-          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"EXCEPTION\"})", "instant": true, "legendFormat": "EXCEPTION", "refId": "G"}
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"CREATED\"})", "instant": true, "legendFormat": "Created", "refId": "A"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"PICKED_UP\"})", "instant": true, "legendFormat": "Picked up", "refId": "B"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"IN_TRANSIT\"})", "instant": true, "legendFormat": "In transit", "refId": "C"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"AT_HUB\"})", "instant": true, "legendFormat": "At hub", "refId": "D"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"OUT_FOR_DELIVERY\"})", "instant": true, "legendFormat": "Out for delivery", "refId": "E"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"DELIVERED\"})", "instant": true, "legendFormat": "Delivered", "refId": "F"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"EXCEPTION\"})", "instant": true, "legendFormat": "Exception", "refId": "G"}
         ],
         "title": "Shipment status distribution",
         "type": "piechart"
