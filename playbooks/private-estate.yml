@@ -47,17 +47,35 @@
       retries: 12
       delay: 5
 
-    - name: Query Zava business metrics
+    - name: Wait for live Azure business metrics
       ansible.builtin.uri:
-        url: "http://127.0.0.1:9090/api/v1/query?query={{ item | urlencode }}"
+        url: "http://127.0.0.1:9090/api/v1/query?query={{ item.query | urlencode }}"
         return_content: true
       loop:
-        - zava_queue_depth
-        - >-
-          zava_tier_heartbeat_age_seconds{
-          platform="azure",location="azure/westus2",exported_tier=""}
-        - zava:worker_completions_per_minute{worker_site!="azure/westus2"}
+        - query: zava_queue_depth
+          minimum_series: 1
+        - query: >-
+            zava_tier_heartbeat_age_seconds{
+            platform="azure",location="azure/westus2",exported_tier=""}
+          minimum_series: 4
       register: zava_business_metric_queries
+      until: >-
+        zava_business_metric_queries.json.data.result
+        | length >= item.minimum_series
+      retries: 12
+      delay: 5
+
+    - name: Wait for historical worker series to leave live recording rules
+      ansible.builtin.uri:
+        url: >-
+          http://127.0.0.1:9090/api/v1/query?query={{
+          'zava:worker_completions_per_minute{worker_site!="azure/westus2"}'
+          | urlencode }}
+        return_content: true
+      register: zava_non_azure_worker_metrics
+      until: zava_non_azure_worker_metrics.json.data.result | length == 0
+      retries: 12
+      delay: 5
 
     - name: Require live Azure business evidence
       ansible.builtin.assert:
@@ -70,7 +88,7 @@
             | map(attribute='tier')
             | unique
             | length == 4
-          - zava_business_metric_queries.results[2].json.data.result | length == 0
+          - zava_non_azure_worker_metrics.json.data.result | length == 0
         fail_msg: >-
           Live Azure queue, four-tier heartbeat, or Azure-only worker filtering
           is incorrect in Prometheus.
