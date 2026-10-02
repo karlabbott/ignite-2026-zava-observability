@@ -50,4 +50,4 @@ groups:
           severity: critical
         annotations:
           summary: Zava application tier heartbeat is stale
-          description: "{{ $labels.tier }} on {{ $labels.hostname }} has stopped reporting."
+          description: "{% raw %}{{ $labels.tier }} on {{ $labels.hostname }} has stopped reporting.{% endraw %}"

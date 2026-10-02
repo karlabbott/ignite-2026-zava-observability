@@ -8,6 +8,11 @@ azure_managed_grafana_name: amg-zava-ignite
 azure_prometheus_dce_name: dce-zava-prometheus
 azure_prometheus_dcr_name: dcr-zava-prometheus
 azure_collector_vm_name: zava-cutover-admin
+azure_vnet_name: vnet-zava-rehearsal-wus2
+azure_workload_subnet_name: snet-zava-workload
+azure_workload_nsg_name: nsg-zava-workload
+azure_nat_gateway_name: nat-zava-workload-wus2
+azure_nat_public_ip_name: pip-zava-nat-wus2
 
 # Private estate coordinates. No SSH key or password belongs in this file.
 zava_collector_address: 192.168.90.10

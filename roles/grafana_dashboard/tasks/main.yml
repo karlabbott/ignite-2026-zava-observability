@@ -11,6 +11,70 @@
       - --only-show-errors
   changed_when: false
 
+- name: Resolve the current Azure operator
+  ansible.builtin.command:
+    argv:
+      - az
+      - ad
+      - signed-in-user
+      - show
+      - --query
+      - id
+      - --output
+      - tsv
+      - --only-show-errors
+  register: grafana_dashboard_operator
+  changed_when: false
+
+- name: Build Azure Managed Grafana resource ID
+  ansible.builtin.set_fact:
+    grafana_dashboard_resource_id: >-
+      /subscriptions/{{ azure_subscription_id }}/resourceGroups/{{
+      azure_resource_group }}/providers/Microsoft.Dashboard/grafana/{{
+      azure_managed_grafana_name }}
+
+- name: Check current operator Grafana access
+  ansible.builtin.command:
+    argv:
+      - az
+      - role
+      - assignment
+      - list
+      - --assignee
+      - "{{ grafana_dashboard_operator.stdout | trim }}"
+      - --role
+      - Grafana Admin
+      - --scope
+      - "{{ grafana_dashboard_resource_id }}"
+      - --query
+      - length(@)
+      - --output
+      - tsv
+      - --only-show-errors
+  register: grafana_dashboard_operator_assignments
+  changed_when: false
+
+- name: Grant current operator Grafana dashboard access
+  ansible.builtin.command:
+    argv:
+      - az
+      - role
+      - assignment
+      - create
+      - --assignee-object-id
+      - "{{ grafana_dashboard_operator.stdout | trim }}"
+      - --assignee-principal-type
+      - User
+      - --role
+      - Grafana Admin
+      - --scope
+      - "{{ grafana_dashboard_resource_id }}"
+      - --only-show-errors
+      - --output
+      - none
+  when: grafana_dashboard_operator_assignments.stdout | trim == '0'
+  changed_when: true
+
 - name: Publish Zava operations dashboard
   ansible.builtin.command:
     argv:
@@ -31,4 +95,8 @@
       - --only-show-errors
       - --output
       - none
+  register: grafana_dashboard_publish
+  retries: 20
+  delay: 15
+  until: grafana_dashboard_publish.rc == 0
   changed_when: true

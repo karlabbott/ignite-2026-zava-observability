@@ -1,0 +1,14 @@
+---
+- name: Provision Azure observability control plane
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - azure_control_plane
+
+- name: Publish the Azure Managed Grafana dashboard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - grafana_dashboard

@@ -60,6 +60,9 @@ the estate's history.
 
 - Deploys Azure Monitor Workspace, Prometheus ingestion DCE/DCR, and Azure
   Managed Grafana through Bicep.
+- Creates an outbound-only NAT Gateway for the private workload subnet and
+  permits only the collector to scrape ports 9100 and 9108 through the existing
+  workload NSG.
 - Enables the collector VM's system-assigned managed identity.
 - Grants only `Monitoring Metrics Publisher` on the Prometheus DCR.
 - Installs node_exporter on the four workload VMs.
@@ -142,6 +145,7 @@ Controller:
 - An interactive Azure login with permission to deploy resources and role
   assignments
 - SSH access to the private estate, normally through the admin VM or VPN
+- An existing workload VNet, subnet, and NSG identified in production variables
 
 Targets:
 
@@ -178,12 +182,13 @@ export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 az bicep install
 ```
 
-When the repository is stored under `/mnt/c`, explicitly select its
-configuration file because Ansible treats Windows-mounted directories as
-world-writable:
+When the repository is stored under `/mnt/c`, Ansible rejects a configuration
+file from that world-writable path even when `ANSIBLE_CONFIG` points to it.
+Provide the repository role path explicitly:
 
 ```bash
-export ANSIBLE_CONFIG="$PWD/ansible.cfg"
+export ANSIBLE_ROLES_PATH="$PWD/roles"
+export ANSIBLE_CALLBACKS_ENABLED=ansible.posix.profile_tasks
 ```
 
 Install collections:
@@ -205,13 +210,48 @@ inventory/production/hosts.yml
 inventory/production/group_vars/all.yml
 ```
 
-Use the production inventory:
+If the controller can reach both Azure and the private estate, use the combined
+entry point:
 
 ```bash
 ansible-playbook \
   -i inventory/production/hosts.yml \
   playbooks/pre-session.yml
 ```
+
+For the Zava topology, keep Azure credentials on the Azure Linux controller and
+run the private phase from `zava-cutover-admin`:
+
+```bash
+# Azure Linux controller
+ansible-playbook \
+  -i inventory/production/hosts.yml \
+  playbooks/control-plane.yml
+```
+
+```powershell
+# Windows operator shell; bootstraps the admin controller, transfers only
+# non-secret generated coordinates/inventory, and runs the private playbook
+.\tools\Invoke-PrivateEstateDeployment.ps1
+```
+
+```bash
+# Azure Linux controller, after the private phase succeeds
+ansible-playbook \
+  -i inventory/production/hosts.yml \
+  playbooks/validate-azure.yml \
+  -e @generated/azure.yml
+```
+
+The PowerShell handoff checks out the exact local Git commit on the admin VM, so
+that commit must already exist on the public remote. It then bootstraps Ansible,
+transfers only ignored non-secret inventory and generated Azure coordinates,
+and requires explicit success markers from Azure Run Command. The
+control-plane phase creates the subnet NAT Gateway before any private host
+downloads are attempted. It does not add public IP addresses to guests or open
+inbound Internet access. The private phase runs as the existing `estate`
+operator with `/home/estate/.ssh/zava_cutover_mgmt`; neither the key nor Azure
+tokens are copied into the repository.
 
 The first managed-identity role assignment can take up to 30 minutes to
 propagate. Prometheus may log HTTP 403 responses during that interval even when

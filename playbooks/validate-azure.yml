@@ -1,0 +1,51 @@
+---
+- name: Verify Azure ingestion and dashboard publication
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Wait for Zava business metrics in Azure Monitor
+      ansible.builtin.command:
+        argv:
+          - az
+          - rest
+          - --method
+          - get
+          - --resource
+          - https://prometheus.monitor.azure.com
+          - --url
+          - "{{ zava_prometheus_query_endpoint | regex_replace('/$', '') }}/api/v1/query?query=zava_queue_depth"
+          - --output
+          - json
+      register: azure_prometheus_query
+      changed_when: false
+      retries: 20
+      delay: 15
+      until: >-
+        azure_prometheus_query.rc == 0
+        and (azure_prometheus_query.stdout | from_json).data.result | length > 0
+
+    - name: Verify the Zava Grafana dashboard
+      ansible.builtin.command:
+        argv:
+          - az
+          - grafana
+          - dashboard
+          - list
+          - --resource-group
+          - "{{ azure_resource_group }}"
+          - --name
+          - "{{ azure_managed_grafana_name }}"
+          - --query
+          - "[?uid=='zava-shipment-flow'] | length(@)"
+          - --output
+          - tsv
+          - --only-show-errors
+      register: zava_grafana_dashboard
+      changed_when: false
+
+    - name: Require the published Zava dashboard
+      ansible.builtin.assert:
+        that:
+          - zava_grafana_dashboard.stdout | trim == '1'
+        fail_msg: The Zava Shipment Flow dashboard is absent from Azure Managed Grafana.

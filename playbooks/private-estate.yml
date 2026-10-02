@@ -1,0 +1,83 @@
+---
+- name: Install host and eBPF instrumentation
+  hosts: zava_workloads
+  become: true
+  gather_facts: true
+  roles:
+    - node_exporter
+    - inspektor_gadget
+
+- name: Install Zava business metrics exporter
+  hosts: zava_api
+  become: true
+  gather_facts: true
+  roles:
+    - zava_metrics_exporter
+
+- name: Install Prometheus collector and Azure remote write
+  hosts: prometheus_collectors
+  become: true
+  gather_facts: true
+  roles:
+    - prometheus_collector
+
+- name: Verify the complete private metrics path
+  hosts: prometheus_collectors
+  gather_facts: false
+  tasks:
+    - name: Wait for Prometheus readiness
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/-/ready
+        return_content: true
+      register: prometheus_ready
+      until: prometheus_ready.status == 200
+      retries: 12
+      delay: 5
+
+    - name: Wait for every configured scrape target
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/api/v1/targets
+        return_content: true
+      register: prometheus_targets
+      until: >-
+        prometheus_targets.json.data.activeTargets
+        | selectattr('health', 'ne', 'up')
+        | list
+        | length == 0
+      retries: 12
+      delay: 5
+
+    - name: Query Zava business metrics
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:9090/api/v1/query?query={{ item | urlencode }}"
+        return_content: true
+      loop:
+        - zava_queue_depth
+        - zava_tier_heartbeat_age_seconds
+      register: zava_business_metric_queries
+
+    - name: Require queue and tier heartbeat evidence
+      ansible.builtin.assert:
+        that:
+          - zava_business_metric_queries.results[0].json.data.result | length == 1
+          - zava_business_metric_queries.results[1].json.data.result | length >= 4
+        fail_msg: Zava queue or four-tier heartbeat metrics are absent from Prometheus.
+
+    - name: Read Prometheus runtime metrics
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/metrics
+        return_content: true
+      register: prometheus_runtime_metrics
+
+    - name: Require successful Azure remote write
+      ansible.builtin.assert:
+        that:
+          - >-
+            prometheus_runtime_metrics.content
+            | regex_search('(?m)^prometheus_remote_storage_samples_total\\{[^\\n]+\\} [1-9][0-9.e+\\-]*$')
+            is not none
+          - >-
+            prometheus_runtime_metrics.content
+            | regex_search('(?m)^prometheus_remote_storage_samples_failed_total\\{[^\\n]+\\} 0(?:\\.0+)?$')
+            is not none
+        fail_msg: Prometheus has not successfully remote-written samples to Azure Monitor.

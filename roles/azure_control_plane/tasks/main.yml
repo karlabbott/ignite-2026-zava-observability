@@ -7,6 +7,11 @@
       - azure_resource_group | length > 0
       - azure_monitor_workspace_name | length > 0
       - azure_managed_grafana_name | length > 0
+      - azure_vnet_name | length > 0
+      - azure_workload_subnet_name | length > 0
+      - azure_workload_nsg_name | length > 0
+      - azure_nat_gateway_name | length > 0
+      - azure_nat_public_ip_name | length > 0
     fail_msg: Copy inventory/example to inventory/production and set real non-secret Azure coordinates.
 
 - name: Confirm Azure CLI authentication
@@ -50,12 +55,15 @@
       - "grafanaName={{ azure_managed_grafana_name }}"
       - "prometheusDceName={{ azure_prometheus_dce_name }}"
       - "prometheusDcrName={{ azure_prometheus_dcr_name }}"
+      - "workloadNsgName={{ azure_workload_nsg_name }}"
+      - "natGatewayName={{ azure_nat_gateway_name }}"
+      - "natPublicIpName={{ azure_nat_public_ip_name }}"
+      - "collectorAddress={{ zava_collector_address }}"
+      - "workerAddress={{ zava_worker_address }}"
       - --output
       - json
   register: azure_control_plane_deployment
-  changed_when: >-
-    (azure_control_plane_deployment.stdout | from_json).properties.provisioningState
-    == 'Succeeded'
+  changed_when: azure_control_plane_deployment.rc == 0
 
 - name: Capture Azure deployment outputs
   ansible.builtin.set_fact:
@@ -67,8 +75,12 @@
       {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusDcrImmutableId.value }}
     azure_control_plane_metrics_ingestion_endpoint: >-
       {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusMetricsIngestionEndpoint.value }}
+    azure_control_plane_prometheus_query_endpoint: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.prometheusQueryEndpoint.value }}
     azure_control_plane_grafana_endpoint: >-
       {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.grafanaEndpoint.value }}
+    azure_control_plane_nat_gateway_resource_id: >-
+      {{ (azure_control_plane_deployment.stdout | from_json).properties.outputs.natGatewayResourceId.value }}
 
 - name: Build Prometheus remote-write URL
   ansible.builtin.set_fact:
@@ -77,6 +89,50 @@
          | regex_replace('/$', '') }}/dataCollectionRules/{{
          azure_control_plane_prometheus_dcr_immutable_id
          }}/streams/Microsoft-PrometheusMetrics/api/v1/write?api-version=2023-04-24
+
+- name: Inspect workload subnet outbound configuration
+  ansible.builtin.command:
+    argv:
+      - az
+      - network
+      - vnet
+      - subnet
+      - show
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --vnet-name
+      - "{{ azure_vnet_name }}"
+      - --name
+      - "{{ azure_workload_subnet_name }}"
+      - --query
+      - natGateway.id
+      - --output
+      - tsv
+      - --only-show-errors
+  register: azure_control_plane_subnet_nat
+  changed_when: false
+
+- name: Attach outbound-only NAT gateway to workload subnet
+  ansible.builtin.command:
+    argv:
+      - az
+      - network
+      - vnet
+      - subnet
+      - update
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --vnet-name
+      - "{{ azure_vnet_name }}"
+      - --name
+      - "{{ azure_workload_subnet_name }}"
+      - --nat-gateway
+      - "{{ azure_control_plane_nat_gateway_resource_id }}"
+      - --only-show-errors
+      - --output
+      - none
+  when: azure_control_plane_subnet_nat.stdout | trim != azure_control_plane_nat_gateway_resource_id
+  changed_when: true
 
 - name: Enable system-assigned identity on Prometheus collector VM
   ansible.builtin.command:
@@ -92,6 +148,27 @@
       - --output
       - json
   register: azure_control_plane_collector_identity
+  changed_when: false
+
+- name: Check Prometheus publishing permission
+  ansible.builtin.command:
+    argv:
+      - az
+      - role
+      - assignment
+      - list
+      - --assignee
+      - "{{ (azure_control_plane_collector_identity.stdout | from_json).systemAssignedIdentity }}"
+      - --role
+      - Monitoring Metrics Publisher
+      - --scope
+      - "{{ azure_control_plane_prometheus_dcr_resource_id }}"
+      - --query
+      - length(@)
+      - --output
+      - tsv
+      - --only-show-errors
+  register: azure_control_plane_metrics_publisher_assignments
   changed_when: false
 
 - name: Grant Prometheus permission to publish metrics
@@ -113,10 +190,8 @@
       - --output
       - none
   register: azure_control_plane_metrics_publisher_assignment
+  when: azure_control_plane_metrics_publisher_assignments.stdout | trim == '0'
   changed_when: azure_control_plane_metrics_publisher_assignment.rc == 0
-  failed_when:
-    - azure_control_plane_metrics_publisher_assignment.rc != 0
-    - "'RoleAssignmentExists' not in azure_control_plane_metrics_publisher_assignment.stderr"
 
 - name: Share Azure outputs with managed hosts
   ansible.builtin.add_host:
@@ -140,4 +215,6 @@
       zava_monitor_workspace_resource_id: {{ azure_control_plane_monitor_workspace_resource_id }}
       zava_prometheus_dcr_resource_id: {{ azure_control_plane_prometheus_dcr_resource_id }}
       zava_prometheus_remote_write_url: {{ azure_control_plane_remote_write_url }}
+      zava_prometheus_query_endpoint: {{ azure_control_plane_prometheus_query_endpoint }}
       zava_grafana_endpoint: {{ azure_control_plane_grafana_endpoint }}
+      zava_nat_gateway_resource_id: {{ azure_control_plane_nat_gateway_resource_id }}

@@ -6,12 +6,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Iterable
 
 import pymssql
-from prometheus_client import (
-    CollectorRegistry,
-    CounterMetricFamily,
-    GaugeMetricFamily,
-    generate_latest,
-)
+from prometheus_client import CollectorRegistry, generate_latest
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
 
 
 def env(name: str, default: str = "") -> str:

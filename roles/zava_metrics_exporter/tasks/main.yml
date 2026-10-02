@@ -56,10 +56,24 @@
     mode: "0644"
 
 - name: Create exporter virtual environment
-  ansible.builtin.pip:
-    requirements: "{{ zava_metrics_exporter_root }}/requirements.txt"
-    virtualenv: "{{ zava_metrics_exporter_root }}/venv"
-    virtualenv_command: "python3 -m venv"
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -m
+      - venv
+      - "{{ zava_metrics_exporter_root }}/venv"
+    creates: "{{ zava_metrics_exporter_root }}/venv/bin/python"
+  notify: Restart Zava metrics exporter
+
+- name: Install exporter Python dependencies
+  ansible.builtin.command:
+    argv:
+      - "{{ zava_metrics_exporter_root }}/venv/bin/pip"
+      - install
+      - --requirement
+      - "{{ zava_metrics_exporter_root }}/requirements.txt"
+  register: zava_metrics_exporter_dependencies
+  changed_when: "'Successfully installed' in zava_metrics_exporter_dependencies.stdout"
   notify: Restart Zava metrics exporter
 
 - name: Install exporter service
