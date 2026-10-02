@@ -395,7 +395,7 @@
             },
             {
               "matcher": {"id": "byFrameRefID", "options": "D"},
-              "properties": [{"id": "color", "value": {"fixedColor": "#10B981", "mode": "fixed"}}]
+              "properties": [{"id": "color", "value": {"fixedColor": "#6B7280", "mode": "fixed"}}]
             },
             {
               "matcher": {"id": "byFrameRefID", "options": "E"},
