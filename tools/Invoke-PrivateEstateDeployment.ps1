@@ -80,10 +80,11 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq python3-venv git
 if [ ! -d '$RemoteRoot/.git' ]; then
-  git clone --quiet '$RemoteRepository' '$RemoteRoot'
+  install -d -o estate -g estate '$RemoteRoot'
+  sudo -u estate -H git clone --quiet '$RemoteRepository' '$RemoteRoot'
 fi
-git -C '$RemoteRoot' fetch --quiet origin
-git -C '$RemoteRoot' checkout --quiet --force --detach '$commit'
+sudo -u estate -H git -C '$RemoteRoot' fetch --quiet origin
+sudo -u estate -H git -C '$RemoteRoot' checkout --quiet --force --detach '$commit'
 python3 -m venv '$RemoteRoot/.venv'
 '$RemoteRoot/.venv/bin/pip' install --quiet --upgrade pip
 '$RemoteRoot/.venv/bin/pip' install --quiet ansible-core==2.21.4
