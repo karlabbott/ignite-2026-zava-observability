@@ -15,7 +15,12 @@ run_capture() {
   local unit="$1"
   local evidence="$2"
   local gadget="$3"
-  shift 3
+  local scope="$4"
+  shift 4
+  local scope_arguments=()
+  if [[ "${scope}" == "host" ]]; then
+    scope_arguments+=(--host)
+  fi
   systemctl stop "${unit}.service" >/dev/null 2>&1 || true
   systemd-run \
     --unit="${unit}" \
@@ -26,34 +31,34 @@ run_capture() {
       --evidence "${evidence}" \
       --metrics-file "{{ inspektor_gadget_metrics_directory }}/zava_ig_${evidence}.prom" \
       -- \
-      /usr/local/bin/ig run "${gadget}" --host -o json "$@"
+      /usr/local/bin/ig run "${gadget}" "${scope_arguments[@]}" -o json "$@"
 }
 
 case "${action}" in
   tcp)
     run_capture zava-ig-tcp tcp \
-      "trace_tcp:v{{ inspektor_gadget_version }}" \
+      "trace_tcp:v{{ inspektor_gadget_version }}" host \
       --connect-only --failure-only --timeout "${duration}"
     echo "Tracing failed TCP connections; focus on ${db_address}:${db_port}."
     ;;
   process)
     run_capture zava-ig-signal process_signal \
-      "trace_signal:v{{ inspektor_gadget_version }}" \
+      "trace_signal:v{{ inspektor_gadget_version }}" host \
       --timeout "${duration}"
     run_capture zava-ig-exec process_exec \
-      "trace_exec:v{{ inspektor_gadget_version }}" \
+      "trace_exec:v{{ inspektor_gadget_version }}" host \
       --paths --timeout "${duration}"
     echo "Tracing process signals and executions."
     ;;
   blockio)
     run_capture zava-ig-blockio blockio \
-      "profile_blockio:v{{ inspektor_gadget_version }}" \
+      "profile_blockio:v{{ inspektor_gadget_version }}" default \
       --timeout "${duration}"
     echo "Profiling block-device latency."
     ;;
   dns)
     run_capture zava-ig-dns dns \
-      "trace_dns:v{{ inspektor_gadget_version }}" \
+      "trace_dns:v{{ inspektor_gadget_version }}" host \
       --timeout "${duration}"
     echo "Tracing DNS requests and responses."
     ;;

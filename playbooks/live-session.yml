@@ -50,6 +50,11 @@
           }}
       when: live_evidence != 'stop'
 
+    - name: Allow requested evidence capture to initialize
+      ansible.builtin.pause:
+        seconds: 5
+      when: live_evidence != 'stop'
+
     - name: Wait for requested evidence capture to remain active
       ansible.builtin.command:
         argv:
