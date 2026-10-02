@@ -86,6 +86,15 @@ def main() -> int:
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
+            if (
+                args.evidence == "blockio"
+                and line.strip()
+                and not line.startswith("time=")
+                and not line.startswith("Error:")
+            ):
+                events += 1
+                last_event = time.time()
+                write_metrics(active=1, success=0)
             continue
         if isinstance(event, dict):
             events += 1

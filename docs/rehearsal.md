@@ -47,9 +47,12 @@ thresholds only after these measurements.
 
 - Start `evidence=tcp` on the worker.
 - Inject the rehearsed route/firewall failure.
-- Verify failed SQL connection events appear quickly enough for the stage.
-- If a silent packet drop produces long timeouts, adjust the fault to reject
-  connections explicitly or choose a different trace.
+- Establish normal SQL connection evidence before the fault.
+- Verify successful SQL connection evidence stops when the route is cut while
+  queue age and backlog continue rising in Grafana.
+- Do not claim that v0.56.1 reliably emits refused or silently dropped
+  connection attempts; use the application symptom and the disappearance of
+  successful connection events together.
 - Verify the route rollback and sustained business recovery.
 
 ### Crush with demand

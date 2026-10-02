@@ -480,7 +480,7 @@
         },
         "targets": [
           {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=~\"process_.*\"})", "instant": true, "legendFormat": "Process lifecycle", "refId": "A"},
-          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"tcp\"})", "instant": true, "legendFormat": "Failed TCP", "refId": "B"},
+          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"tcp\"})", "instant": true, "legendFormat": "TCP connections", "refId": "B"},
           {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"blockio\"})", "instant": true, "legendFormat": "Block I/O", "refId": "C"},
           {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"dns\"})", "instant": true, "legendFormat": "DNS", "refId": "D"}
         ],
