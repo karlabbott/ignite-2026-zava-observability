@@ -288,9 +288,9 @@
           "tooltip": {"mode": "multi", "sort": "desc"}
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava:worker_completions_per_minute", "legendFormat": "{{worker_host}} / {{worker_site}}", "refId": "A"}
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\"}", "legendFormat": "{{worker_host}} / {{worker_site}}", "refId": "A"}
         ],
-        "title": "Worker contribution",
+        "title": "Live Azure worker contribution",
         "type": "timeseries"
       },
       {
@@ -323,9 +323,9 @@
           "valueMode": "color"
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava_tier_heartbeat_age_seconds", "instant": true, "legendFormat": "{{tier}} / {{hostname}}", "refId": "A"}
+          {"editorMode": "code", "expr": "zava_tier_heartbeat_age_seconds{platform=\"azure\",location=\"azure/westus2\",exported_tier=\"\"}", "instant": true, "legendFormat": "{{tier}} / {{hostname}}", "refId": "A"}
         ],
-        "title": "Application heartbeat age",
+        "title": "Live Azure tier heartbeat age",
         "type": "bargauge"
       },
       {

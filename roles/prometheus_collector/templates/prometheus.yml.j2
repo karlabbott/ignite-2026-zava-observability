@@ -14,7 +14,7 @@ scrape_configs:
       - targets:
           - "{{ zava_api_address }}:9108"
         labels:
-          tier: api
+          scrape_tier: api
           host: sles-api
 
   - job_name: zava-linux

@@ -53,15 +53,27 @@
         return_content: true
       loop:
         - zava_queue_depth
-        - zava_tier_heartbeat_age_seconds
+        - >-
+          zava_tier_heartbeat_age_seconds{
+          platform="azure",location="azure/westus2",exported_tier=""}
+        - zava:worker_completions_per_minute{worker_site!="azure/westus2"}
       register: zava_business_metric_queries
 
-    - name: Require queue and tier heartbeat evidence
+    - name: Require live Azure business evidence
       ansible.builtin.assert:
         that:
           - zava_business_metric_queries.results[0].json.data.result | length == 1
-          - zava_business_metric_queries.results[1].json.data.result | length >= 4
-        fail_msg: Zava queue or four-tier heartbeat metrics are absent from Prometheus.
+          - zava_business_metric_queries.results[1].json.data.result | length == 4
+          - >-
+            zava_business_metric_queries.results[1].json.data.result
+            | map(attribute='metric')
+            | map(attribute='tier')
+            | unique
+            | length == 4
+          - zava_business_metric_queries.results[2].json.data.result | length == 0
+        fail_msg: >-
+          Live Azure queue, four-tier heartbeat, or Azure-only worker filtering
+          is incorrect in Prometheus.
 
     - name: Read Prometheus runtime metrics
       ansible.builtin.uri:

@@ -9,9 +9,13 @@ groups:
       - record: zava:backlog_change_per_minute
         expr: zava:work_arrivals_per_minute - zava:work_completions_per_minute
       - record: zava:worker_completions_per_minute
-        expr: sum by (worker_host, worker_site) (rate(zava_scan_events_total[2m]) * 60)
+        expr: >-
+          sum by (worker_host, worker_site)
+          (rate(zava_scan_events_total{worker_site="azure/westus2"}[2m]) * 60)
       - record: zava:tier_healthy
-        expr: zava_tier_heartbeat_age_seconds < 30
+        expr: >-
+          zava_tier_heartbeat_age_seconds{
+          platform="azure",location="azure/westus2",exported_tier=""} < 30
 
   - name: zava-flow-alerts
     interval: 10s
@@ -44,7 +48,9 @@ groups:
           description: Work arrival rate has exceeded completion rate for three minutes.
 
       - alert: ZavaTierHeartbeatStale
-        expr: zava_tier_heartbeat_age_seconds > 30
+        expr: >-
+          zava_tier_heartbeat_age_seconds{
+          platform="azure",location="azure/westus2",exported_tier=""} > 30
         for: 20s
         labels:
           severity: critical
