@@ -86,3 +86,20 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Read active node exporter command
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - show
+      - node-exporter.service
+      - --property=ExecStart
+      - --value
+  register: node_exporter_active_command
+  changed_when: false
+
+- name: Restart node exporter when textfile collection is absent
+  ansible.builtin.systemd_service:
+    name: node-exporter.service
+    state: restarted
+  when: node_exporter_textfile_directory not in node_exporter_active_command.stdout
