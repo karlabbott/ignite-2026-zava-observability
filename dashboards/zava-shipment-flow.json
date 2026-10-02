@@ -248,31 +248,31 @@
           "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
           "overrides": [
             {
-              "matcher": {"id": "byName", "options": "CREATED"},
+              "matcher": {"id": "byFrameRefID", "options": "A"},
               "properties": [{"id": "color", "value": {"fixedColor": "gray", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "PICKED_UP"},
+              "matcher": {"id": "byFrameRefID", "options": "B"},
               "properties": [{"id": "color", "value": {"fixedColor": "light-blue", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "IN_TRANSIT"},
+              "matcher": {"id": "byFrameRefID", "options": "C"},
               "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "AT_HUB"},
+              "matcher": {"id": "byFrameRefID", "options": "D"},
               "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "OUT_FOR_DELIVERY"},
+              "matcher": {"id": "byFrameRefID", "options": "E"},
               "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "DELIVERED"},
+              "matcher": {"id": "byFrameRefID", "options": "F"},
               "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byName", "options": "EXCEPTION"},
+              "matcher": {"id": "byFrameRefID", "options": "G"},
               "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
             }
           ]
@@ -286,7 +286,13 @@
           "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava_shipments", "instant": true, "legendFormat": "{{status}}", "refId": "A"}
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"CREATED\"})", "instant": true, "legendFormat": "CREATED", "refId": "A"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"PICKED_UP\"})", "instant": true, "legendFormat": "PICKED_UP", "refId": "B"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"IN_TRANSIT\"})", "instant": true, "legendFormat": "IN_TRANSIT", "refId": "C"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"AT_HUB\"})", "instant": true, "legendFormat": "AT_HUB", "refId": "D"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"OUT_FOR_DELIVERY\"})", "instant": true, "legendFormat": "OUT_FOR_DELIVERY", "refId": "E"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"DELIVERED\"})", "instant": true, "legendFormat": "DELIVERED", "refId": "F"},
+          {"editorMode": "code", "expr": "sum(zava_shipments{status=\"EXCEPTION\"})", "instant": true, "legendFormat": "EXCEPTION", "refId": "G"}
         ],
         "title": "Shipment status distribution",
         "type": "piechart"
@@ -376,23 +382,23 @@
           },
           "overrides": [
             {
-              "matcher": {"id": "byRegexp", "options": "^rhel /"},
+              "matcher": {"id": "byFrameRefID", "options": "A"},
               "properties": [{"id": "color", "value": {"fixedColor": "#EE0000", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byRegexp", "options": "^sles /"},
+              "matcher": {"id": "byFrameRefID", "options": "B"},
               "properties": [{"id": "color", "value": {"fixedColor": "#30BA78", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byRegexp", "options": "^ubuntu /"},
+              "matcher": {"id": "byFrameRefID", "options": "C"},
               "properties": [{"id": "color", "value": {"fixedColor": "#E95420", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byRegexp", "options": "^rocky /"},
+              "matcher": {"id": "byFrameRefID", "options": "D"},
               "properties": [{"id": "color", "value": {"fixedColor": "#10B981", "mode": "fixed"}}]
             },
             {
-              "matcher": {"id": "byRegexp", "options": "^azurelinux /"},
+              "matcher": {"id": "byFrameRefID", "options": "E"},
               "properties": [{"id": "color", "value": {"fixedColor": "#0078D4", "mode": "fixed"}}]
             }
           ]
@@ -406,9 +412,33 @@
         "targets": [
           {
             "editorMode": "code",
-            "expr": "1 - avg by (distro, host, tier) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m]))",
-            "legendFormat": "{{distro}} / {{tier}} / {{host}}",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\",distro=\"rhel\"}[2m]))",
+            "legendFormat": "RHEL / {{tier}} / {{host}}",
             "refId": "A"
+          },
+          {
+            "editorMode": "code",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\",distro=\"sles\"}[2m]))",
+            "legendFormat": "SLES / {{tier}} / {{host}}",
+            "refId": "B"
+          },
+          {
+            "editorMode": "code",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\",distro=\"ubuntu\"}[2m]))",
+            "legendFormat": "Ubuntu / {{tier}} / {{host}}",
+            "refId": "C"
+          },
+          {
+            "editorMode": "code",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\",distro=\"rocky\"}[2m]))",
+            "legendFormat": "Rocky / {{tier}} / {{host}}",
+            "refId": "D"
+          },
+          {
+            "editorMode": "code",
+            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\",distro=\"azurelinux\"}[2m]))",
+            "legendFormat": "Azure Linux / {{tier}} / {{host}}",
+            "refId": "E"
           }
         ],
         "title": "CPU utilization by tier",
