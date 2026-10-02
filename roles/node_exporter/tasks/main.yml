@@ -87,19 +87,28 @@
     state: started
     daemon_reload: true
 
-- name: Read active node exporter command
+- name: Read active node exporter process ID
   ansible.builtin.command:
     argv:
       - systemctl
       - show
       - node-exporter.service
-      - --property=ExecStart
+      - --property=MainPID
       - --value
-  register: node_exporter_active_command
+  register: node_exporter_main_pid
   changed_when: false
+
+- name: Read active node exporter process command
+  ansible.builtin.slurp:
+    src: "/proc/{{ node_exporter_main_pid.stdout | trim }}/cmdline"
+  register: node_exporter_active_command
+  when: node_exporter_main_pid.stdout | trim != '0'
 
 - name: Restart node exporter when textfile collection is absent
   ansible.builtin.systemd_service:
     name: node-exporter.service
     state: restarted
-  when: node_exporter_textfile_directory not in node_exporter_active_command.stdout
+  when: >-
+    node_exporter_active_command is skipped
+    or node_exporter_textfile_directory not in
+       (node_exporter_active_command.content | b64decode)
