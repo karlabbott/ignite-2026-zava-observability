@@ -374,7 +374,28 @@
             },
             "unit": "percentunit"
           },
-          "overrides": []
+          "overrides": [
+            {
+              "matcher": {"id": "byRegexp", "options": "^rhel /"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#EE0000", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": "^sles /"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#30BA78", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": "^ubuntu /"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#E95420", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": "^rocky /"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#10B981", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byRegexp", "options": "^azurelinux /"},
+              "properties": [{"id": "color", "value": {"fixedColor": "#0078D4", "mode": "fixed"}}]
+            }
+          ]
         },
         "gridPos": {"h": 8, "w": 8, "x": 16, "y": 14},
         "id": 11,
@@ -385,8 +406,8 @@
         "targets": [
           {
             "editorMode": "code",
-            "expr": "1 - avg by (host, tier) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m]))",
-            "legendFormat": "{{tier}} / {{host}}",
+            "expr": "1 - avg by (distro, host, tier) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m]))",
+            "legendFormat": "{{distro}} / {{tier}} / {{host}}",
             "refId": "A"
           }
         ],
