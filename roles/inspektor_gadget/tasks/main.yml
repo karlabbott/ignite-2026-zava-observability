@@ -45,6 +45,14 @@
     group: root
     mode: "0755"
 
+- name: Install Inspektor Gadget metrics bridge
+  ansible.builtin.template:
+    src: zava-ig-export.py.j2
+    dest: /usr/local/sbin/zava-ig-export
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Verify Inspektor Gadget installation
   ansible.builtin.command:
     argv:

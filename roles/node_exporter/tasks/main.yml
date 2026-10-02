@@ -16,6 +16,14 @@
     shell: /usr/sbin/nologin
     create_home: false
 
+- name: Create node exporter textfile directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_textfile_directory }}"
+    state: directory
+    owner: root
+    group: "{{ node_exporter_user }}"
+    mode: "0755"
+
 - name: Download node exporter
   ansible.builtin.get_url:
     url: >-

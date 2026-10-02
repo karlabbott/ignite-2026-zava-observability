@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Stream Inspektor Gadget JSON to the journal and Prometheus textfile metrics."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import signal
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+def prometheus_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--evidence", required=True)
+    parser.add_argument("--metrics-file", required=True)
+    parser.add_argument("command", nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+    if not command:
+        parser.error("a command is required after --")
+
+    evidence = prometheus_escape(args.evidence)
+    host = prometheus_escape(socket.gethostname())
+    metrics_path = Path(args.metrics_file)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    started = time.time()
+    last_event = 0.0
+    events = 0
+    child: subprocess.Popen[str] | None = None
+    stopping = False
+
+    def write_metrics(*, active: int, success: int) -> None:
+        labels = f'evidence="{evidence}",host="{host}"'
+        content = (
+            "# HELP zava_ig_capture_events Events emitted by the latest bounded Inspektor Gadget capture.\n"
+            "# TYPE zava_ig_capture_events gauge\n"
+            f"zava_ig_capture_events{{{labels}}} {events}\n"
+            "# HELP zava_ig_capture_active Whether the bounded Inspektor Gadget capture is active.\n"
+            "# TYPE zava_ig_capture_active gauge\n"
+            f"zava_ig_capture_active{{{labels}}} {active}\n"
+            "# HELP zava_ig_capture_success Whether the latest bounded Inspektor Gadget capture completed successfully.\n"
+            "# TYPE zava_ig_capture_success gauge\n"
+            f"zava_ig_capture_success{{{labels}}} {success}\n"
+            "# HELP zava_ig_capture_started_timestamp_seconds Start time of the latest bounded Inspektor Gadget capture.\n"
+            "# TYPE zava_ig_capture_started_timestamp_seconds gauge\n"
+            f"zava_ig_capture_started_timestamp_seconds{{{labels}}} {started:.6f}\n"
+            "# HELP zava_ig_last_event_timestamp_seconds Time of the latest event emitted by Inspektor Gadget.\n"
+            "# TYPE zava_ig_last_event_timestamp_seconds gauge\n"
+            f"zava_ig_last_event_timestamp_seconds{{{labels}}} {last_event:.6f}\n"
+        )
+        temporary = metrics_path.with_suffix(metrics_path.suffix + ".tmp")
+        temporary.write_text(content, encoding="utf-8")
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, metrics_path)
+
+    def stop_capture(_signum: int, _frame: object) -> None:
+        nonlocal stopping
+        stopping = True
+        if child is not None and child.poll() is None:
+            child.terminate()
+
+    signal.signal(signal.SIGTERM, stop_capture)
+    signal.signal(signal.SIGINT, stop_capture)
+    write_metrics(active=1, success=0)
+
+    child = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert child.stdout is not None
+    for line in child.stdout:
+        print(line, end="", flush=True)
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            events += 1
+            last_event = time.time()
+            write_metrics(active=1, success=0)
+
+    return_code = child.wait()
+    success = int(return_code == 0 and not stopping)
+    write_metrics(active=0, success=success)
+    return return_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

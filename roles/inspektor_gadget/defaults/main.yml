@@ -5,3 +5,4 @@ inspektor_gadget_arch_map:
 inspektor_gadget_checksums:
   amd64: dd8e2942b7f2a572f4a77672532a4992970a820cbadac108d4784351ba7c3098
   arm64: d0b2aca819119577480da1b652f0c1a7b35248707fe7d48c7460ae4e949b7f1a
+inspektor_gadget_metrics_directory: /var/lib/node_exporter/textfile_collector

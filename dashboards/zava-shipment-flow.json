@@ -443,6 +443,120 @@
         ],
         "title": "CPU utilization by tier",
         "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+          "overrides": [
+            {
+              "matcher": {"id": "byFrameRefID", "options": "A"},
+              "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byFrameRefID", "options": "B"},
+              "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byFrameRefID", "options": "C"},
+              "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byFrameRefID", "options": "D"},
+              "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]
+            }
+          ]
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 22},
+        "id": 12,
+        "options": {
+          "displayMode": "gradient",
+          "minVizHeight": 10,
+          "minVizWidth": 0,
+          "orientation": "horizontal",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "showUnfilled": true,
+          "valueMode": "color"
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=~\"process_.*\"})", "instant": true, "legendFormat": "Process lifecycle", "refId": "A"},
+          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"tcp\"})", "instant": true, "legendFormat": "Failed TCP", "refId": "B"},
+          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"blockio\"})", "instant": true, "legendFormat": "Block I/O", "refId": "C"},
+          {"editorMode": "code", "expr": "sum(zava_ig_capture_events{evidence=\"dns\"})", "instant": true, "legendFormat": "DNS", "refId": "D"}
+        ],
+        "title": "Latest Inspektor Gadget evidence",
+        "type": "bargauge"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisPlacement": "auto",
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "lineWidth": 2,
+              "showPoints": "never",
+              "stacking": {"group": "A", "mode": "none"}
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 22},
+        "id": 13,
+        "options": {
+          "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "desc"}
+        },
+        "targets": [
+          {"editorMode": "code", "expr": "zava_ig_capture_events", "legendFormat": "{{evidence}} / {{host}}", "refId": "A"}
+        ],
+        "title": "IG evidence events over time",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 60},
+                {"color": "red", "value": 180}
+              ]
+            },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 22},
+        "id": 14,
+        "options": {
+          "displayMode": "gradient",
+          "minVizHeight": 10,
+          "minVizWidth": 0,
+          "orientation": "horizontal",
+          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+          "showUnfilled": true,
+          "valueMode": "color"
+        },
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "(time() - zava_ig_last_event_timestamp_seconds) and (zava_ig_last_event_timestamp_seconds > 0)",
+            "instant": true,
+            "legendFormat": "{{evidence}} / {{host}}",
+            "refId": "A"
+          }
+        ],
+        "title": "IG evidence age",
+        "type": "bargauge"
       }
     ],
     "refresh": "10s",

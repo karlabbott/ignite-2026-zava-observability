@@ -40,6 +40,30 @@
       changed_when: live_evidence != 'stop'
       when: live_evidence != 'stop'
 
+    - name: Select expected capture services
+      ansible.builtin.set_fact:
+        live_capture_services: >-
+          {{
+            ['signal', 'exec']
+            if live_evidence == 'process'
+            else [live_evidence]
+          }}
+      when: live_evidence != 'stop'
+
+    - name: Wait for requested evidence capture to remain active
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - "zava-ig-{{ item }}.service"
+      loop: "{{ live_capture_services }}"
+      register: live_capture_service_states
+      retries: 5
+      delay: 2
+      until: live_capture_service_states.stdout | trim == 'active'
+      changed_when: false
+      when: live_evidence != 'stop'
+
     - name: Show evidence command
       ansible.builtin.debug:
         msg:

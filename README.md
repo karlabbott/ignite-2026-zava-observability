@@ -81,7 +81,10 @@ business dashboard shows a problem. Every capture:
 - Runs through a transient systemd unit.
 - Has a 30–600 second timeout.
 - Stops any prior Zava capture before starting.
-- Writes to the guest journal.
+- Uses a version-pinned Gadget in explicit host mode.
+- Writes JSON evidence to the guest journal.
+- Converts event counts and timestamps into Prometheus textfile metrics exposed
+  by node_exporter and displayed in the Grafana IG evidence panels.
 - Has a deterministic `evidence=stop` path.
 
 Examples:
