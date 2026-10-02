@@ -246,7 +246,36 @@
         "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
         "fieldConfig": {
           "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
-          "overrides": []
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "CREATED"},
+              "properties": [{"id": "color", "value": {"fixedColor": "gray", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "PICKED_UP"},
+              "properties": [{"id": "color", "value": {"fixedColor": "light-blue", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "IN_TRANSIT"},
+              "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "AT_HUB"},
+              "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "OUT_FOR_DELIVERY"},
+              "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "DELIVERED"},
+              "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "EXCEPTION"},
+              "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
+            }
+          ]
         },
         "gridPos": {"h": 9, "w": 8, "x": 16, "y": 5},
         "id": 8,
