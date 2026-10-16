@@ -99,6 +99,7 @@ ansible-playbook -i inventory/production/hosts.yml \
 ```
 
 The stage handoff uses the prepared controller, checkout, and coordinates.
+It checks the prepared Git revision as the checkout owner, `estate`.
 It does not run apt, pip, collection installation, Git fetch, or inventory
 transfer. It invokes only the `observability_deploy` Ansible tasks.
 
@@ -157,6 +158,11 @@ The pre-session deployment continuously exports three operational signals:
 The collectors export low-cardinality aggregates rather than raw event fields.
 Detailed output remains in the guest journal, and systemd restarts a collector
 if it exits unexpectedly.
+The metrics bridge drains partial output without waiting for a newline, so
+collector heartbeats remain fresh while a block-I/O profile is running.
+
+Run its regression checks on the Linux controller with
+`python -m unittest discover -s tests -v`.
 
 `playbooks/live-session.yml` supplements those continuous signals with a
 bounded deep trace after the business dashboard shows a problem. Every deep

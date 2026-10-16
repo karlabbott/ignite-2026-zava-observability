@@ -164,7 +164,7 @@ echo ZAVA_PRIVATE_COORDINATES_READY
     $preparedMarker = ""
     if ($Phase -eq "Stage") {
         $preparedCheck = @"
-if [ "`$(git rev-parse HEAD)" != '$commit' ] ||
+if [ "`$(sudo -u estate -H git -C '$RemoteRoot' rev-parse HEAD)" != '$commit' ] ||
    [ ! -f generated/prepared-commit ] ||
    [ "`$(cat generated/prepared-commit)" != '$commit' ]; then
   echo 'Run the Prepare phase for this commit before the stage deployment.' >&2

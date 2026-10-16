@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import os
 import re
@@ -48,7 +49,7 @@ def main() -> int:
     blockio_profiles = 0
     blockio_profile_timestamp = 0.0
     parsing_blockio_latency = False
-    child: subprocess.Popen[str] | None = None
+    child: subprocess.Popen[bytes] | None = None
     stopping = False
 
     def write_metrics(*, active: int, success: int) -> None:
@@ -130,12 +131,12 @@ def main() -> int:
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
     )
     assert child.stdout is not None
     selector = selectors.DefaultSelector()
     selector.register(child.stdout, selectors.EVENT_READ)
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    pending = ""
     blockio_line = re.compile(r"^\s*(\d+)\s+->\s+(\d+)\s+:\s+(\d+)\s+\|")
 
     while True:
@@ -146,61 +147,67 @@ def main() -> int:
                 break
             continue
 
-        line = child.stdout.readline()
-        if line == "":
-            if child.poll() is not None:
-                break
-            continue
+        chunk = child.stdout.read1(65536)
+        pending += decoder.decode(chunk, final=not chunk)
+        lines = pending.split("\n")
+        pending = lines.pop()
+        if not chunk and pending:
+            lines.append(pending)
+            pending = ""
+        write_metrics(active=1, success=0)
 
-        print(line, end="", flush=True)
-        stripped = line.strip()
-        if args.evidence == "blockio":
-            if stripped == "latency":
-                parsing_blockio_latency = True
-                blockio_buckets = []
+        for line in lines:
+            print(line, flush=True)
+            stripped = line.strip()
+            if args.evidence == "blockio":
+                if stripped == "latency":
+                    parsing_blockio_latency = True
+                    blockio_buckets = []
+                    continue
+                if stripped == "ZAVA_IG_PROFILE_END":
+                    blockio_operations = sum(count for _, count in blockio_buckets)
+                    p95_upper_microseconds = 0
+                    if blockio_operations:
+                        threshold = blockio_operations * 0.95
+                        cumulative = 0
+                        for upper, count in blockio_buckets:
+                            cumulative += count
+                            if cumulative >= threshold:
+                                p95_upper_microseconds = upper
+                                break
+                    blockio_p95_seconds = p95_upper_microseconds / 1_000_000
+                    blockio_profiles += 1
+                    blockio_profile_timestamp = time.time()
+                    events += blockio_operations
+                    last_event = blockio_profile_timestamp
+                    parsing_blockio_latency = False
+                    write_metrics(active=1, success=0)
+                    continue
+                if parsing_blockio_latency:
+                    match = blockio_line.match(line)
+                    if match:
+                        blockio_buckets.append((int(match.group(2)), int(match.group(3))))
+                    continue
+
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
                 continue
-            if stripped == "ZAVA_IG_PROFILE_END":
-                blockio_operations = sum(count for _, count in blockio_buckets)
-                p95_upper_microseconds = 0
-                if blockio_operations:
-                    threshold = blockio_operations * 0.95
-                    cumulative = 0
-                    for upper, count in blockio_buckets:
-                        cumulative += count
-                        if cumulative >= threshold:
-                            p95_upper_microseconds = upper
-                            break
-                blockio_p95_seconds = p95_upper_microseconds / 1_000_000
-                blockio_profiles += 1
-                blockio_profile_timestamp = time.time()
-                events += blockio_operations
-                last_event = blockio_profile_timestamp
-                parsing_blockio_latency = False
+            if isinstance(event, dict):
+                events += 1
+                last_event = time.time()
+                if args.evidence == "tcp" and args.tcp_destination and args.tcp_port:
+                    destination = event.get("dst", {})
+                    if (
+                        event.get("type") == "connect"
+                        and destination.get("addr") == args.tcp_destination
+                        and destination.get("port") == args.tcp_port
+                    ):
+                        result = "success" if not event.get("error") else "error"
+                        tcp_connections[result] += 1
                 write_metrics(active=1, success=0)
-                continue
-            if parsing_blockio_latency:
-                match = blockio_line.match(line)
-                if match:
-                    blockio_buckets.append((int(match.group(2)), int(match.group(3))))
-                continue
-
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(event, dict):
-            events += 1
-            last_event = time.time()
-            if args.evidence == "tcp" and args.tcp_destination and args.tcp_port:
-                destination = event.get("dst", {})
-                if (
-                    event.get("type") == "connect"
-                    and destination.get("addr") == args.tcp_destination
-                    and destination.get("port") == args.tcp_port
-                ):
-                    result = "success" if not event.get("error") else "error"
-                    tcp_connections[result] += 1
-            write_metrics(active=1, success=0)
+        if not chunk:
+            break
 
     return_code = child.wait()
     success = int(return_code == 0 and not stopping)
