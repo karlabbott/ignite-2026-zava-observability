@@ -1,5 +1,7 @@
 ---
 - name: Ensure Azure Managed Grafana CLI extension is available
+  tags:
+    - observability_prepare
   ansible.builtin.command:
     argv:
       - az
@@ -12,6 +14,8 @@
   changed_when: false
 
 - name: Resolve the current Azure operator
+  tags:
+    - observability_prepare
   ansible.builtin.command:
     argv:
       - az
@@ -27,6 +31,8 @@
   changed_when: false
 
 - name: Build Azure Managed Grafana resource ID
+  tags:
+    - observability_prepare
   ansible.builtin.set_fact:
     grafana_dashboard_resource_id: >-
       /subscriptions/{{ azure_subscription_id }}/resourceGroups/{{
@@ -34,6 +40,8 @@
       azure_managed_grafana_name }}
 
 - name: Check current operator Grafana access
+  tags:
+    - observability_prepare
   ansible.builtin.command:
     argv:
       - az
@@ -55,6 +63,8 @@
   changed_when: false
 
 - name: Grant current operator Grafana dashboard access
+  tags:
+    - observability_prepare
   ansible.builtin.command:
     argv:
       - az
@@ -75,7 +85,49 @@
   when: grafana_dashboard_operator_assignments.stdout | trim == '0'
   changed_when: true
 
+- name: Wait for current operator Grafana access before the talk
+  ansible.builtin.command:
+    argv:
+      - az
+      - grafana
+      - dashboard
+      - list
+      - --resource-group
+      - "{{ azure_resource_group }}"
+      - --name
+      - "{{ azure_managed_grafana_name }}"
+      - --query
+      - length(@)
+      - --output
+      - tsv
+      - --only-show-errors
+  register: grafana_dashboard_access
+  retries: 20
+  delay: 15
+  until: grafana_dashboard_access.rc == 0
+  changed_when: false
+  tags:
+    - observability_prepare
+
+- name: Require the prepared Grafana CLI extension
+  ansible.builtin.command:
+    argv:
+      - az
+      - extension
+      - show
+      - --name
+      - amg
+      - --output
+      - none
+      - --only-show-errors
+  changed_when: false
+  when: zava_observability_phase | default('full') == 'stage'
+  tags:
+    - observability_deploy
+
 - name: Publish Zava operations dashboard
+  tags:
+    - observability_deploy
   ansible.builtin.command:
     argv:
       - az

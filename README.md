@@ -52,11 +52,82 @@ The four application distributions remain visible throughout the dashboard and
 investigation. Azure is the unifying operational layer, not an excuse to erase
 the estate's history.
 
-## Two playbooks
+## Ignite preparation and onstage deployment
+
+The timing boundary is not Bicep versus Ansible. Bicep and the slow Ansible
+setup run before the talk; a deployment-only Ansible pass makes the Azure
+business view live onstage.
+
+| Phase | Work |
+|---|---|
+| Prepare | Provision Azure resources, settle Grafana access, bootstrap the private Ansible controller, install pinned binaries and Python dependencies, and enable host and continuous kernel evidence. Leave the Zava business exporter and Prometheus stopped and disabled. Do not publish the business dashboard. |
+| Stage | Install the business exporter's service configuration and start it; apply Prometheus scrape, remote-write, and alert configuration; start the collector; publish the dashboard and check the metrics path. No package installation, downloads, Bicep deployment, or new role assignments. |
+| Investigate | Use `live-session.yml` for a bounded trace when the business view exposes a problem. |
+
+Preparation stops only the observability exporter and collector, not the Zava
+application or database. It preserves Prometheus history and any existing
+dashboard. Repeating preparation returns the collector/exporter to the stopped
+starting point; stage activation is a real change, not an already-running
+deployment presented as new.
+
+Use the split paths below for the private Zava network. Commit and push the
+reviewed implementation first: preparation checks out that exact commit on
+the admin VM, and the stage handoff requires its preparation marker. Reconcile
+both production inventories with the workload VMs that actually exist. Exclude
+`azurelinux-worker` until it has been deployed; the scrape configuration and
+heartbeat checks support either four or five application hosts.
+
+**Before the talk, Azure Linux controller:**
+
+```bash
+ansible-playbook -i inventory/production/hosts.yml \
+  playbooks/control-plane.yml \
+  --skip-tags observability_deploy \
+  -e zava_observability_phase=prepare
+```
+
+**Before the talk, Windows operator shell:**
+
+```powershell
+.\tools\Invoke-PrivateEstateDeployment.ps1 -Phase Prepare
+```
+
+**Onstage, Windows operator shell:**
+
+```powershell
+.\tools\Invoke-PrivateEstateDeployment.ps1 -Phase Stage
+```
+
+The stage handoff uses the prepared controller, checkout, and coordinates.
+It does not run apt, pip, collection installation, Git fetch, or inventory
+transfer. It invokes only the `observability_deploy` Ansible tasks.
+
+**Onstage, Azure Linux controller:**
+
+```bash
+ansible-playbook -i inventory/production/hosts.yml \
+  playbooks/control-plane.yml \
+  --tags observability_deploy \
+  -e zava_observability_phase=stage
+
+ansible-playbook -i inventory/production/hosts.yml \
+  playbooks/validate-azure.yml \
+  -e @generated/azure.yml
+```
+
+Keep the existing controller environment settings described below. The
+deployment-only tags exclude the Azure foundation and all guest installation
+tasks. Preparation includes a Grafana access check so permission propagation
+does not become an onstage setup task. Azure metric arrival is checked after
+activation; no stage runtime is assumed or claimed. Karl owns the live
+execution, timing, and rehearsal.
+
+## Full deployment and live investigation
 
 ### Before the session
 
-`playbooks/pre-session.yml` performs the slow and potentially failure-prone work:
+The existing full-deployment path remains available without phase selectors.
+`playbooks/pre-session.yml` performs the complete setup:
 
 - Deploys Azure Monitor Workspace, Prometheus ingestion DCE/DCR, and Azure
   Managed Grafana through Bicep.
@@ -65,7 +136,7 @@ the estate's history.
   workload NSG.
 - Enables the collector VM's system-assigned managed identity.
 - Grants only `Monitoring Metrics Publisher` on the Prometheus DCR.
-- Installs node_exporter on the five workload VMs, including both workers.
+- Installs node_exporter on the workload VMs in inventory.
 - Installs the Zava business exporter on SLES.
 - Installs Prometheus on the private admin VM.
 - Configures managed-identity remote write.

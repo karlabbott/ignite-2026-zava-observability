@@ -5,6 +5,8 @@
   gather_facts: false
   roles:
     - azure_control_plane
+  tags:
+    - observability_prepare
 
 - name: Publish the Azure Managed Grafana dashboard
   hosts: localhost

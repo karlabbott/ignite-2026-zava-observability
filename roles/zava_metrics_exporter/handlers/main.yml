@@ -1,5 +1,6 @@
 ---
 - name: Restart Zava metrics exporter
+  when: zava_observability_phase | default('full') != 'prepare'
   ansible.builtin.systemd_service:
     name: zava-metrics-exporter.service
     state: restarted

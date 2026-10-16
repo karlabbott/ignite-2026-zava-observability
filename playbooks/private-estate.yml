@@ -2,7 +2,7 @@
 - name: Install host and eBPF instrumentation
   hosts: zava_workloads
   become: true
-  gather_facts: true
+  gather_facts: "{{ zava_observability_phase | default('full') != 'stage' }}"
   roles:
     - node_exporter
     - inspektor_gadget
@@ -10,20 +10,22 @@
 - name: Install Zava business metrics exporter
   hosts: zava_api
   become: true
-  gather_facts: true
+  gather_facts: "{{ zava_observability_phase | default('full') != 'stage' }}"
   roles:
     - zava_metrics_exporter
 
 - name: Install Prometheus collector and Azure remote write
   hosts: prometheus_collectors
   become: true
-  gather_facts: true
+  gather_facts: "{{ zava_observability_phase | default('full') != 'stage' }}"
   roles:
     - prometheus_collector
 
 - name: Verify the complete private metrics path
   hosts: prometheus_collectors
   gather_facts: false
+  tags:
+    - observability_deploy
   tasks:
     - name: Wait for Prometheus readiness
       ansible.builtin.uri:
@@ -40,7 +42,9 @@
         return_content: true
       register: prometheus_targets
       until: >-
-        prometheus_targets.json.data.activeTargets
+        prometheus_targets.json.data.activeTargets | length
+        == groups['zava_workloads'] | length + 1
+        and prometheus_targets.json.data.activeTargets
         | selectattr('health', 'ne', 'up')
         | list
         | length == 0
@@ -56,12 +60,13 @@
           minimum_series: 1
         - query: >-
             zava_tier_heartbeat_age_seconds{
-            platform="Azure",location="azure/westus2"}
-          minimum_series: 5
+            platform="Azure",location="azure/westus2",
+            hostname=~"{{ groups['zava_workloads'] | join('|') }}"}
+          minimum_series: "{{ groups['zava_workloads'] | length }}"
       register: zava_business_metric_queries
       until: >-
         zava_business_metric_queries.json.data.result
-        | length >= item.minimum_series
+        | length >= item.minimum_series | int
       retries: 12
       delay: 5
 
@@ -81,7 +86,9 @@
       ansible.builtin.assert:
         that:
           - zava_business_metric_queries.results[0].json.data.result | length == 1
-          - zava_business_metric_queries.results[1].json.data.result | length == 5
+          - >-
+            zava_business_metric_queries.results[1].json.data.result | length
+            == groups['zava_workloads'] | length
           - >-
             zava_business_metric_queries.results[1].json.data.result
             | map(attribute='metric')
@@ -90,7 +97,7 @@
             | length == 4
           - zava_non_azure_worker_metrics.json.data.result | length == 0
         fail_msg: >-
-          Live Azure queue, five-host heartbeat, or Azure-only worker filtering
+          Live Azure queue, inventory-matched heartbeats, or Azure-only worker filtering
           is incorrect in Prometheus.
 
     - name: Read Prometheus runtime metrics

@@ -63,6 +63,8 @@
   notify: Restart Prometheus
 
 - name: Install Prometheus configuration
+  tags:
+    - observability_deploy
   ansible.builtin.template:
     src: prometheus.yml.j2
     dest: /etc/prometheus/prometheus.yml
@@ -73,6 +75,8 @@
   notify: Restart Prometheus
 
 - name: Install Zava recording and alert rules
+  tags:
+    - observability_deploy
   ansible.builtin.template:
     src: zava-rules.yml.j2
     dest: /etc/prometheus/rules/zava-rules.yml
@@ -92,8 +96,20 @@
   notify: Restart Prometheus
 
 - name: Enable Prometheus
+  tags:
+    - observability_deploy
   ansible.builtin.systemd_service:
     name: prometheus.service
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Leave the prepared collector stopped until the stage deployment
+  ansible.builtin.systemd_service:
+    name: prometheus.service
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  when: zava_observability_phase | default('full') == 'prepare'
+  tags:
+    - observability_prepare
