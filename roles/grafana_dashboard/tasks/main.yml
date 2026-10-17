@@ -1,4 +1,11 @@
 ---
+- name: Load prepared Azure metrics coordinates
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../generated/azure.yml"
+  tags:
+    - observability_prepare
+    - observability_deploy
+
 - name: Ensure Azure Managed Grafana CLI extension is available
   tags:
     - observability_prepare
@@ -125,6 +132,78 @@
   tags:
     - observability_deploy
 
+- name: Check the real business query path before the talk
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ playbook_dir }}/../tools/validate_grafana.py"
+      - --endpoint
+      - "{{ zava_grafana_endpoint }}"
+      - --query-endpoint
+      - "{{ zava_prometheus_query_endpoint }}"
+      - --prepare
+  changed_when: false
+  tags:
+    - observability_prepare
+
+- name: Bind the dashboard to the prepared metrics workspace
+  tags:
+    - observability_deploy
+  block:
+    - name: Read available Grafana datasources
+      ansible.builtin.command:
+        argv:
+          - az
+          - grafana
+          - data-source
+          - list
+          - --resource-group
+          - "{{ azure_resource_group }}"
+          - --name
+          - "{{ azure_managed_grafana_name }}"
+          - --only-show-errors
+          - --output
+          - json
+      register: grafana_dashboard_datasources
+      changed_when: false
+
+    - name: Select the configured Azure metrics datasource
+      ansible.builtin.set_fact:
+        grafana_dashboard_matching_sources: >-
+          {{ (grafana_dashboard_datasources.stdout | from_json)
+             | selectattr('type', 'equalto', 'prometheus')
+             | selectattr('url', 'equalto', zava_prometheus_query_endpoint | regex_replace('/$', ''))
+             | list }}
+        grafana_dashboard_definition: >-
+          {{ lookup('ansible.builtin.file', playbook_dir ~ '/../dashboards/zava-shipment-flow.json') | from_json }}
+
+    - name: Require exactly one configured Azure metrics datasource
+      ansible.builtin.assert:
+        that:
+          - grafana_dashboard_matching_sources | length == 1
+        fail_msg: The prepared workspace must have exactly one Prometheus datasource in Grafana.
+
+    - name: Render the dashboard with an explicit workspace selection
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../generated/zava-shipment-flow.json"
+        mode: "0644"
+        content: >-
+          {{ grafana_dashboard_definition | combine({
+            'dashboard': {
+              'templating': {
+                'list': [
+                  grafana_dashboard_definition.dashboard.templating.list[0] | combine({
+                    'current': {
+                      'text': grafana_dashboard_matching_sources[0].name,
+                      'value': grafana_dashboard_matching_sources[0].uid
+                    },
+                    'regex': '^' ~ (grafana_dashboard_matching_sources[0].name | regex_escape) ~ '$'
+                  })
+                ]
+              }
+            }
+          }, recursive=true) | to_nice_json }}
+
 - name: Publish Zava operations dashboard
   tags:
     - observability_deploy
@@ -141,7 +220,7 @@
       - --title
       - Zava Shipment Flow
       - --definition
-      - "@{{ playbook_dir }}/../dashboards/zava-shipment-flow.json"
+      - "@{{ playbook_dir }}/../generated/zava-shipment-flow.json"
       - --overwrite
       - "true"
       - --only-show-errors

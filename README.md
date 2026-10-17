@@ -77,6 +77,15 @@ both production inventories with the workload VMs that actually exist. Exclude
 `azurelinux-worker` until it has been deployed; the scrape configuration and
 heartbeat checks support either four or five application hosts.
 
+Preparation also exercises the four critical business panels' PromQL through
+Grafana with a 10-second HTTP timeout, catching workspace query failures before
+the talk. Empty results are reported and permitted while the business pipeline
+is stopped; that is a query-path check, not proof of fresh ingestion. Stage
+acceptance requires numeric data for every target in those panels, including
+the flow panel's range queries, and checks the published dashboard's selected
+datasource. Publication explicitly selects the configured workspace, even when
+Grafana retains other Prometheus datasources.
+
 **Before the talk, Azure Linux controller:**
 
 ```bash
