@@ -6,11 +6,10 @@
   tasks:
     - name: Verify the published business panels through Grafana
       ansible.builtin.command:
-        argv:
-          - "{{ ansible_playbook_python }}"
-          - "{{ playbook_dir }}/../tools/validate_grafana.py"
-          - --endpoint
-          - "{{ zava_grafana_endpoint }}"
-          - --query-endpoint
-          - "{{ zava_prometheus_query_endpoint }}"
+        argv: >-
+          {{ [
+            ansible_playbook_python, playbook_dir ~ '/../tools/validate_grafana.py',
+            '--endpoint', zava_grafana_endpoint,
+            '--query-endpoint', zava_prometheus_query_endpoint
+          ] + (['--capacity'] if 'azurelinux-worker' in groups.get('zava_workloads', []) else []) }}
       changed_when: false

@@ -88,6 +88,11 @@ workspace and removes the datasource selector. A saved browser/URL variable
 cannot send panels back to an old workspace, even when Grafana retains other
 Prometheus datasources.
 
+The Azure Linux scrape address is derived from its inventory `ansible_host`;
+adding the host does not require a second address variable. When that worker
+is in inventory, `validate-azure.yml` also requires data for both worker
+contributions and all five distribution-specific CPU queries.
+
 **Before the talk, Azure Linux controller:**
 
 ```bash

@@ -69,6 +69,16 @@ class GrafanaAcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "four required"):
             VALIDATOR.build_queries({"panels": []}, "workspace")
 
+    def test_capacity_acceptance_includes_both_workers_and_all_five_cpu_queries(self):
+        dashboard = json.loads(
+            (ROOT / "dashboards/zava-shipment-flow.json").read_text()
+        )["dashboard"]
+        queries = VALIDATOR.build_queries(
+            dashboard, "selected-workspace", VALIDATOR.PANEL_IDS | {9, 11}
+        )
+        refs = {query["refId"] for query in queries}
+        self.assertTrue({"9-A", "9-B", "11-A", "11-B", "11-C", "11-D", "11-E"} <= refs)
+
     def test_empty_targets_are_rejected(self):
         panels = [{"id": panel_id, "targets": []} for panel_id in VALIDATOR.PANEL_IDS]
         with self.assertRaisesRegex(ValueError, "no query targets"):

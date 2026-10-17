@@ -12,9 +12,9 @@ import urllib.request
 PANEL_IDS = {1, 4, 7, 10}
 
 
-def check_datasource(dashboard, datasource_uid):
+def check_datasource(dashboard, datasource_uid, panel_ids=PANEL_IDS):
     for panel in dashboard["panels"]:
-        if panel["id"] in PANEL_IDS:
+        if panel["id"] in panel_ids:
             if panel["datasource"]["uid"] != datasource_uid:
                 raise ValueError(f"Panel {panel['id']} is not explicitly bound to the configured workspace")
             for target in panel["targets"]:
@@ -22,10 +22,10 @@ def check_datasource(dashboard, datasource_uid):
                     raise ValueError(f"Panel {panel['id']} target selects a different datasource")
 
 
-def build_queries(dashboard, datasource_uid):
-    panels = [p for p in dashboard["panels"] if p["id"] in PANEL_IDS]
-    if {p["id"] for p in panels} != PANEL_IDS:
-        raise ValueError("The four required business panels are not all present")
+def build_queries(dashboard, datasource_uid, panel_ids=PANEL_IDS):
+    panels = [p for p in dashboard["panels"] if p["id"] in panel_ids]
+    if {p["id"] for p in panels} != panel_ids:
+        raise ValueError("The four required business panels or requested capacity panels are not all present")
     queries = []
     for panel in panels:
         if not panel["targets"]:
@@ -77,7 +77,11 @@ def main():
     parser.add_argument("--endpoint", required=True)
     parser.add_argument("--query-endpoint", required=True)
     parser.add_argument("--prepare", action="store_true")
+    parser.add_argument("--capacity", action="store_true")
     args = parser.parse_args()
+    if args.prepare and args.capacity:
+        parser.error("Capacity acceptance requires the published stage dashboard")
+    panel_ids = PANEL_IDS | ({9, 11} if args.capacity else set())
     credentials = subprocess.run(
         ["az", "account", "get-access-token", "--resource",
          "ce34e7e5-485f-4d76-964f-b3d2b16d1e4f",
@@ -120,8 +124,8 @@ def main():
         dashboard = json.loads(definition.read_text())["dashboard"]
     else:
         dashboard = request("/api/dashboards/uid/zava-shipment-flow")["dashboard"]
-        check_datasource(dashboard, source["uid"])
-    queries = build_queries(dashboard, source["uid"])
+        check_datasource(dashboard, source["uid"], panel_ids)
+    queries = build_queries(dashboard, source["uid"], panel_ids)
     now = int(time.time() * 1000)
     started = time.monotonic()
     payload = request("/api/ds/query", {
@@ -134,6 +138,7 @@ def main():
         "query_seconds": round(time.monotonic() - started, 2),
         "queries": summaries,
         "current_samples_required": not args.prepare,
+        "capacity_panels_required": args.capacity,
     }))
 
 

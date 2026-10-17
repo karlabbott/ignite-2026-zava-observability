@@ -40,7 +40,7 @@ scrape_configs:
           host: ciq-rocky-worker
           distro: rocky
 {% if 'azurelinux-worker' in groups['zava_workloads'] %}
-      - targets: ["{{ zava_azurelinux_worker_address }}:9100"]
+      - targets: ["{{ hostvars['azurelinux-worker'].ansible_host }}:9100"]
         labels:
           tier: worker
           host: azurelinux-worker
