@@ -83,8 +83,10 @@ the talk. Empty results are reported and permitted while the business pipeline
 is stopped; that is a query-path check, not proof of fresh ingestion. Stage
 acceptance requires numeric data for every target in those panels, including
 the flow panel's range queries, and checks the published dashboard's selected
-datasource. Publication explicitly selects the configured workspace, even when
-Grafana retains other Prometheus datasources.
+datasource. Publication binds panel datasource UIDs directly to the configured
+workspace and removes the datasource selector. A saved browser/URL variable
+cannot send panels back to an old workspace, even when Grafana retains other
+Prometheus datasources.
 
 **Before the talk, Azure Linux controller:**
 

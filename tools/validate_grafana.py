@@ -12,6 +12,16 @@ import urllib.request
 PANEL_IDS = {1, 4, 7, 10}
 
 
+def check_datasource(dashboard, datasource_uid):
+    for panel in dashboard["panels"]:
+        if panel["id"] in PANEL_IDS:
+            if panel["datasource"]["uid"] != datasource_uid:
+                raise ValueError(f"Panel {panel['id']} is not explicitly bound to the configured workspace")
+            for target in panel["targets"]:
+                if target.get("datasource", panel["datasource"])["uid"] != datasource_uid:
+                    raise ValueError(f"Panel {panel['id']} target selects a different datasource")
+
+
 def build_queries(dashboard, datasource_uid):
     panels = [p for p in dashboard["panels"] if p["id"] in PANEL_IDS]
     if {p["id"] for p in panels} != PANEL_IDS:
@@ -110,21 +120,7 @@ def main():
         dashboard = json.loads(definition.read_text())["dashboard"]
     else:
         dashboard = request("/api/dashboards/uid/zava-shipment-flow")["dashboard"]
-        variables = [
-            var for var in dashboard["templating"]["list"]
-            if var["name"] == "DS_PROMETHEUS"
-        ]
-        if len(variables) != 1 or variables[0]["current"].get("value") != source["uid"]:
-            raise ValueError("Published dashboard is not bound to the configured metrics workspace")
-        for panel in dashboard["panels"]:
-            if panel["id"] in PANEL_IDS:
-                if panel["datasource"]["uid"] not in ("${DS_PROMETHEUS}", source["uid"]):
-                    raise ValueError(f"Panel {panel['id']} selects a different datasource")
-                for target in panel["targets"]:
-                    if target.get("datasource", panel["datasource"])["uid"] not in (
-                        "${DS_PROMETHEUS}", source["uid"],
-                    ):
-                        raise ValueError(f"Panel {panel['id']} target selects a different datasource")
+        check_datasource(dashboard, source["uid"])
     queries = build_queries(dashboard, source["uid"])
     now = int(time.time() * 1000)
     started = time.monotonic()

@@ -23,6 +23,34 @@ def response(values):
 
 
 class GrafanaAcceptanceTests(unittest.TestCase):
+    def test_variable_binding_is_rejected_even_if_its_saved_selection_is_correct(self):
+        dashboard = {
+            "panels": [{
+                "id": 1, "datasource": {"uid": "${DS_PROMETHEUS}"},
+                "targets": [{"refId": "A"}],
+            }],
+            "templating": {"list": [{
+                "name": "DS_PROMETHEUS", "current": {"value": "new-workspace"},
+            }]},
+        }
+        with self.assertRaisesRegex(ValueError, "not explicitly bound"):
+            VALIDATOR.check_datasource(dashboard, "new-workspace")
+
+    def test_explicit_binding_does_not_depend_on_a_browser_variable(self):
+        dashboard = {"panels": [{
+            "id": 1, "datasource": {"uid": "new-workspace"},
+            "targets": [{"refId": "A"}],
+        }]}
+        VALIDATOR.check_datasource(dashboard, "new-workspace")
+
+    def test_target_cannot_override_the_configured_workspace(self):
+        dashboard = {"panels": [{
+            "id": 1, "datasource": {"uid": "new-workspace"},
+            "targets": [{"refId": "A", "datasource": {"uid": "old-workspace"}}],
+        }]}
+        with self.assertRaisesRegex(ValueError, "different datasource"):
+            VALIDATOR.check_datasource(dashboard, "new-workspace")
+
     def test_checks_all_four_panels_and_preserves_real_query_modes(self):
         dashboard = json.loads(
             (ROOT / "dashboards/zava-shipment-flow.json").read_text()

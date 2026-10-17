@@ -191,18 +191,11 @@
           {{ grafana_dashboard_definition | combine({
             'dashboard': {
               'templating': {
-                'list': [
-                  grafana_dashboard_definition.dashboard.templating.list[0] | combine({
-                    'current': {
-                      'text': grafana_dashboard_matching_sources[0].name,
-                      'value': grafana_dashboard_matching_sources[0].uid
-                    },
-                    'regex': '^' ~ (grafana_dashboard_matching_sources[0].name | regex_escape) ~ '$'
-                  })
-                ]
+                'list': []
               }
             }
-          }, recursive=true) | to_nice_json }}
+          }, recursive=true) | to_nice_json
+             | replace('"${DS_PROMETHEUS}"', grafana_dashboard_matching_sources[0].uid | to_json) }}
 
 - name: Publish Zava operations dashboard
   tags:
