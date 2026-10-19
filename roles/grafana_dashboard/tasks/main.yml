@@ -3,8 +3,7 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../generated/azure.yml"
   tags:
-    - observability_prepare
-    - observability_deploy
+    - always
 
 - name: Ensure Azure Managed Grafana CLI extension is available
   tags:

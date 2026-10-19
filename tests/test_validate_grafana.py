@@ -1,6 +1,9 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 
@@ -114,6 +117,36 @@ class GrafanaAcceptanceTests(unittest.TestCase):
     def test_missing_query_result_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "result missing"):
             VALIDATOR.check_results([{"refId": "A"}], {"results": {}}, False)
+
+
+class GrafanaPhaseSelectionTests(unittest.TestCase):
+    def test_coordinates_are_loaded_for_both_documented_phase_selectors(self):
+        for phase, selector in [
+            ("prepare", "--skip-tags"),
+            ("stage", "--tags"),
+        ]:
+            with self.subTest(phase=phase):
+                result = subprocess.run(
+                    [
+                        sys.executable, "-m", "ansible.cli.playbook",
+                        "-i", str(ROOT / "inventory/example/hosts.yml"),
+                        str(ROOT / "playbooks/control-plane.yml"),
+                        "--list-tasks", selector, "observability_deploy",
+                        "-e", f"zava_observability_phase={phase}",
+                    ],
+                    env={
+                        **os.environ,
+                        "ANSIBLE_CONFIG": str(ROOT / "ansible.cfg"),
+                        "ANSIBLE_ROLES_PATH": str(ROOT / "roles"),
+                    },
+                    capture_output=True, text=True, check=True, timeout=30,
+                )
+                self.assertIn("Load prepared Azure metrics coordinates", result.stdout)
+                if phase == "prepare":
+                    self.assertIn("Check the real business query path", result.stdout)
+                    self.assertNotIn("Publish Zava operations dashboard", result.stdout)
+                else:
+                    self.assertIn("Publish Zava operations dashboard", result.stdout)
 
 
 if __name__ == "__main__":
