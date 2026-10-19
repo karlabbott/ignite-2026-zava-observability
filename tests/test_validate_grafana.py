@@ -1,10 +1,13 @@
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
+from contextlib import redirect_stdout
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +120,50 @@ class GrafanaAcceptanceTests(unittest.TestCase):
     def test_missing_query_result_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "result missing"):
             VALIDATOR.check_results([{"refId": "A"}], {"results": {}}, False)
+
+    def test_unpublished_panel_data_proof_requires_numeric_samples_without_dashboard_access(self):
+        refs = ["1-A", "4-A", "7-A", "7-B", "7-C", "10-A"]
+        for numeric in [False, True]:
+            with self.subTest(numeric=numeric):
+                payload = {"results": {
+                    ref: response([0] if numeric else [])["results"]["A"]
+                    for ref in refs
+                }}
+                requested = []
+
+                def urlopen(request, timeout):
+                    self.assertEqual(timeout, 10)
+                    requested.append(request.full_url)
+                    body = (
+                        [{"type": "prometheus", "uid": "fresh", "url": "https://metrics.invalid"}]
+                        if request.full_url.endswith("/api/datasources") else payload
+                    )
+                    return io.BytesIO(json.dumps(body).encode())
+
+                with (
+                    patch.object(sys, "argv", [
+                        "validate_grafana.py", "--endpoint", "https://grafana.invalid",
+                        "--query-endpoint", "https://metrics.invalid",
+                        "--prepare", "--require-data",
+                    ]),
+                    patch.object(VALIDATOR.subprocess, "run", return_value=subprocess.CompletedProcess(
+                        [], 0, stdout=json.dumps({"accessToken": "test-token"}),
+                    )),
+                    patch.object(VALIDATOR.urllib.request, "urlopen", side_effect=urlopen),
+                    redirect_stdout(io.StringIO()) as output,
+                ):
+                    if numeric:
+                        VALIDATOR.main()
+                        result = json.loads(output.getvalue())
+                        self.assertTrue(result["current_samples_required"])
+                        self.assertEqual(result["mode"], "prepare-panel-data")
+                    else:
+                        with self.assertRaisesRegex(ValueError, "no numeric samples"):
+                            VALIDATOR.main()
+                self.assertEqual(requested, [
+                    "https://grafana.invalid/api/datasources",
+                    "https://grafana.invalid/api/ds/query",
+                ])
 
 
 class GrafanaPhaseSelectionTests(unittest.TestCase):

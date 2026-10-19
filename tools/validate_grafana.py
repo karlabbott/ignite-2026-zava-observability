@@ -77,6 +77,10 @@ def main():
     parser.add_argument("--endpoint", required=True)
     parser.add_argument("--query-endpoint", required=True)
     parser.add_argument("--prepare", action="store_true")
+    parser.add_argument(
+        "--require-data", action="store_true",
+        help="Require numeric samples when checking unpublished panels with --prepare",
+    )
     parser.add_argument("--capacity", action="store_true")
     args = parser.parse_args()
     if args.prepare and args.capacity:
@@ -131,13 +135,17 @@ def main():
     payload = request("/api/ds/query", {
         "from": str(now - 30 * 60 * 1000), "to": str(now), "queries": queries,
     })
-    summaries = check_results(queries, payload, require_data=not args.prepare)
+    require_data = not args.prepare or args.require_data
+    summaries = check_results(queries, payload, require_data=require_data)
     print(json.dumps({
-        "mode": "prepare-query-path" if args.prepare else "stage-panel-data",
+        "mode": (
+            "prepare-panel-data" if args.prepare and require_data
+            else "prepare-query-path" if args.prepare else "stage-panel-data"
+        ),
         "datasource": source["uid"],
         "query_seconds": round(time.monotonic() - started, 2),
         "queries": summaries,
-        "current_samples_required": not args.prepare,
+        "current_samples_required": require_data,
         "capacity_panels_required": args.capacity,
     }))
 

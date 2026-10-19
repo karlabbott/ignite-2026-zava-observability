@@ -90,6 +90,18 @@ workspace and removes the datasource selector. A saved browser/URL variable
 cannot send panels back to an old workspace, even when Grafana retains other
 Prometheus datasources.
 
+If a rehearsal uses a fresh workspace, choose a unique workspace/DCR name pair
+in production variables and reuse that pair for retries within the rehearsal.
+Keep previous workspaces/history unless their deletion is explicitly approved.
+A fresh workspace is a recovery workaround, not proof of a permanent query
+service repair. Fast empty queries do not prove ingestion or numeric panel data.
+If an offstage pipeline activation is explicitly approved, run
+`tools/validate_grafana.py --endpoint <grafana> --query-endpoint <workspace>
+--prepare --require-data` to require numeric samples for the real unpublished
+business panels. This command neither publishes a dashboard nor starts services.
+After that proof, run the private Prepare path again to return the business
+exporter and Prometheus to stopped/disabled before the onstage handoff.
+
 The Azure Linux scrape address is derived from its inventory `ansible_host`;
 adding the host does not require a second address variable. When that worker
 is in inventory, `validate-azure.yml` also requires data for both worker
