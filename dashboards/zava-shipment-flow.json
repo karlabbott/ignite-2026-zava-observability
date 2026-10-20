@@ -334,8 +334,8 @@
           "tooltip": {"mode": "multi", "sort": "desc"}
         },
         "targets": [
-          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"ciq-rocky-worker\"}", "legendFormat": "Rocky / {{worker_host}}", "refId": "A"},
-          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"azurelinux-worker\"}", "legendFormat": "Azure Linux / {{worker_host}}", "refId": "B"}
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"ciq-rocky-worker\"} and on(worker_host) label_replace(up{job=\"zava-linux\",tier=\"worker\"}, \"worker_host\", \"$1\", \"host\", \"(.+)\")", "legendFormat": "Rocky / {{worker_host}}", "refId": "A"},
+          {"editorMode": "code", "expr": "zava:worker_completions_per_minute{worker_site=\"azure/westus2\",worker_host=\"azurelinux-worker\"} and on(worker_host) label_replace(up{job=\"zava-linux\",tier=\"worker\"}, \"worker_host\", \"$1\", \"host\", \"(.+)\")", "legendFormat": "Azure Linux / {{worker_host}}", "refId": "B"}
         ],
         "title": "Live Azure worker contribution",
         "type": "timeseries"

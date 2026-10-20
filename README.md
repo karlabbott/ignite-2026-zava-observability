@@ -77,6 +77,14 @@ both production inventories with the workload VMs that actually exist. Exclude
 `azurelinux-worker` until it has been deployed; the scrape configuration and
 heartbeat checks support either four or five application hosts.
 
+The live worker contribution panel intersects scan-history rates with the current
+worker scrape targets. Retained historical Azure Linux scans do not make an absent
+worker appear in the live legend. Configured workers remain represented even when
+their scrape is down (`up = 0`); the panel does not hide a real worker failure.
+The Azure Linux contribution appears automatically once that worker is configured
+and has scan-rate data. PromQL regressions in `tests/test_prometheus_config.py`
+use the prepared `promtool` when it is on `PATH`.
+
 Preparation also exercises the four critical business panels' PromQL through
 Grafana with a 10-second HTTP timeout, catching workspace query failures before
 the talk. Generated Azure coordinates are loaded in both phase selections,
