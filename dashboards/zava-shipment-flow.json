@@ -95,7 +95,7 @@
       {
         "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
         "fieldConfig": {
-          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "ops"},
+          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "none"},
           "overrides": []
         },
         "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
@@ -118,7 +118,7 @@
       {
         "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
         "fieldConfig": {
-          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "ops"},
+          "defaults": {"color": {"mode": "continuous-GrYlRd"}, "unit": "none"},
           "overrides": []
         },
         "gridPos": {"h": 5, "w": 4, "x": 12, "y": 0},
@@ -224,7 +224,7 @@
               "spanNulls": false,
               "stacking": {"group": "A", "mode": "none"}
             },
-            "unit": "ops"
+            "unit": "none"
           },
           "overrides": []
         },
@@ -561,7 +561,7 @@
               "stacking": {"group": "A", "mode": "none"}
             },
             "min": 0,
-            "unit": "ops"
+            "unit": "none"
           },
           "overrides": [
             {

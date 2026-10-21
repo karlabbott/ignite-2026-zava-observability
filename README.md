@@ -98,6 +98,10 @@ workspace and removes the datasource selector. A saved browser/URL variable
 cannot send panels back to an old workspace, even when Grafana retains other
 Prometheus datasources.
 
+The flow, arrivals/minute, completions/minute, and worker TCP retransmissions
+panels use no numeric unit suffix. Their titles and legends specify per-minute
+rates where applicable; the flow panel also includes backlog as a count.
+
 If a rehearsal uses a fresh workspace, choose a unique workspace/DCR name pair
 in production variables and reuse that pair for retries within the rehearsal.
 Keep previous workspaces/history unless their deletion is explicitly approved.
